@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from nn_lib import Ausgrid_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
+from nn_lib import Pendulum_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.cuda.amp import autocast, GradScaler
 
@@ -85,6 +85,7 @@ class LSTM_DeepONet(nn.Module):
 
     def forward_1(self, x, metadata, mask):
         
+        t_s = 0.01
         t = metadata[:,-3].type(torch.int64)
         x_n = x[:,t].diagonal()
 
@@ -94,7 +95,7 @@ class LSTM_DeepONet(nn.Module):
         latent_x = self.input_mlp(x)
         latent_x_n = self.x_n_mlp(x_n)
         
-        delta_t = metadata[:,[-2]]
+        delta_t = metadata[:,[-2]] * t_s
         delta_t = delta_t.unsqueeze(-1)
         
         # normalize
@@ -212,13 +213,12 @@ if __name__ == "__main__":
     torch.manual_seed(999)
     np.random.seed(999)
 
-    train_dataset = Ausgrid_Dataset(
-        filepath='data/lorenz.pkl',
-        time_range=(0.01, 21),
+    train_dataset = Pendulum_Dataset(
+        filepath='data/pendulum.pkl',
         search_len=2,
-        search_num=2,
+        search_num=20,
         use_padding=True,
-        mask_len=None,
+        search_random = True,
         device=device_glob,
         transform=standarize_X,
         target_transform=standarize_metadata,

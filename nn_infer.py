@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from nn_lib import Ausgrid_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
+from nn_lib import Pendulum_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from nn_train import LSTM_DeepONet
 from matplotlib.offsetbox import AnchoredText
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_path='models/best_model_830.pt'
+    model_path='models/best_model_129.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -43,13 +43,11 @@ if __name__ == "__main__":
     model.eval()
 
     # define the dataset
-    dataset = Ausgrid_Dataset(
-        filepath='data/lorenz.pkl',
-        time_range=(0.01, 21),
+    dataset = Pendulum_Dataset(
+        filepath='data/pendulum_test.pkl',
         search_len=2,
-        search_num=1,
+        search_num=999,
         use_padding=True,
-        mask_len=None,
         search_random=False,
         device=device_glob,
         transform=standarize_X,
@@ -76,7 +74,7 @@ if __name__ == "__main__":
             delta_t = metadata[:,-2].view(-1,1)
             t = metadata[:,-3].view(-1,1)
             t_search = t + delta_t
-            mask = (X>1e-7).type(torch.bool)
+            mask = (X!=0).type(torch.bool)
 
             pred = model(X,metadata,mask)
 
@@ -95,9 +93,9 @@ if __name__ == "__main__":
         fig.set_size_inches(6.4,4.8)
         ax.set_prop_cycle(color=[cm(1.*i/num_colors) for i in range(num_colors)])
         ax.set_xlabel('t')
-        ax.set_ylabel('x')
-        ax.set_ylim(ymin=-18,ymax=20)
-        ax.set_xlim(xmin=0,xmax=20)
+        ax.set_ylabel(r'$\theta(t)$')
+        #ax.set_ylim(ymin=-2,ymax=2)
+        ax.set_xlim(xmin=0,xmax=10)
         ax.grid(True)
 
         line1 = None
@@ -129,8 +127,8 @@ if __name__ == "__main__":
         #ani = animation.FuncAnimation(fig, update_fig, frames=frame_num, interval=100, blit=True)
         #ani.save('figures/infer_anim'+ fig_name_suffix +'.gif', writer='pillow', fps=1, dpi=300)
         
-        ax.plot(np.arange(X_list.shape[1])/100,X_list[[-1]].T-20,marker='none',color ='green',label='X')
-        ax.plot(t_list/100,pred_list-20,linestyle='--',color='red',label='pred')
+        ax.plot(np.arange(X_list.shape[1])/100,X_list[[-1]].T,linestyle='-',marker='none',color ='green',label='X')
+        ax.plot(t_list/100,pred_list,linestyle='none',marker='.',color='red',label='pred')
         #ax.plot(t_list,y_list,linestyle='--',color='green',alpha=0.7,label='label')
 
         # calculate inference statistics

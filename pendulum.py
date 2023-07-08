@@ -1,32 +1,61 @@
 import numpy as np
-from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-import pandas as pd
+from scipy.linalg import cholesky
+from nn_lib import grf_1d, integrate, runge_kutta
+import pickle
 
-# Define the system of ODEs
-def lorenz(state,t):
-    sigma = 10
-    rho = 28
-    beta = 8/3
-    x, y, z = state  # Unpack the state vector
-    return sigma*(y - x), x*(rho - z) - y, x*y - beta*z  # Derivatives
+# define the pendulu's vector field
+m = 1
+l = 1
+I = (1 / 12) * m * (l ** 2)
+b = 0.01
+g = 9.81
+def pendulum(x, u):
+    theta, omega = x
+    f_theta = omega
+    f_omega = (1 / (0.25 * m * (l ** 2) + I)) * (u - b * omega - 0.5 * m * l * g * np.sin(theta))
+    return np.array([f_theta, f_omega])
 
-state0 = [0.0, 1.0, 1.0]  # Initial condition
-t = np.arange(0.0, 50.0, 0.01)  # Time grid
+# for testing, we solve the following:
+T = 10
+h = 0.01
+N = int(T/h)
+x = np.array([0.1,1.0])
+n_spline = 1
 
-# Solve the ODEs
-state = odeint(lorenz, state0, t)
+def u_maker(func):
+    def u(t, x):
+        theta, theta_dot = x
+        return func(theta_dot)
+    return u
 
-# Save the t and data in pkl format
-data = np.concatenate((t.reshape(-1,1), state), axis=1)
-df = pd.DataFrame(data, columns=['t','x','y','z'])
-df.to_pickle('data/lorenz.pkl')
+def control(t, x):
+    theta, theta_dot = x
+    #return -0.80 * theta_dot
+    #return np.sin(t/2)
+    return np.sin(t/2) - 0.80 * theta_dot
+    
 
-# Plot x against t
-#plt.figure(figsize=(10,6))
-#plt.plot(t, state[:, 1])
-#plt.xlabel('t')
-#plt.xlim(-5,25)
-#plt.ylabel('x')
-#plt.title('Lorenz Attractor - x vs t')
-#plt.show()
+splines=[]
+
+outputs={}
+for i in range(n_spline):
+    spline = grf_1d()
+    splines.append(spline)
+    u = u_maker(spline)
+    #u = control
+    soln = integrate(runge_kutta, pendulum, u, x, h, N)
+    theta = np.vstack((theta,soln.x[:-1,0].T)) if i>0 else (soln.x[:-1,0].T).reshape(1,-1)
+    theta_dot = np.vstack((theta_dot,soln.x[:-1,1].T)) if i>0 else (soln.x[:-1,1].T).reshape(1,-1)
+    if i%100==0:
+        print(f'{i} data are generated.')
+
+outputs['theta'] = theta
+outputs['omega'] = theta_dot
+outputs['t'] = soln.t
+#outputs['u'] = splines
+
+# save the data in pickle format
+with open('data/pendulum_test.pkl', 'wb') as f:
+    pickle.dump(outputs, f)
+print('Data saved in data/pendulum_test.pkl .')

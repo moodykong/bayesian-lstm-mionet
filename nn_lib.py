@@ -1,11 +1,14 @@
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
+from scipy.linalg import cholesky
+from scipy.interpolate import CubicSpline
 import torch
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import shutil
+import pickle
 
 
 __version__ = '1.0.1'
@@ -13,13 +16,11 @@ __author__ = "Zhihao Kong"
 __email__ = 'kong89@purdue.edu'
 __date__ = '2023-06-27'
 
-class Ausgrid_Dataset(Dataset):
+class Pendulum_Dataset(Dataset):
     def __init__(
         self,
         
-        filepath = 'data/lorenz.pkl',
-        time_range = (20, 999),
-        mask_len = None,
+        filepath = 'data/pendulum.pkl',
         search_len = 10,
         search_num = 5,
         search_random = True,
@@ -32,84 +33,58 @@ class Ausgrid_Dataset(Dataset):
         self.device = device
         self.transform = transform
         self.target_transform = target_transform
-        self.time_range = time_range
-        self.mask_len = mask_len
         self.search_len = search_len
         self.search_num = search_num
         self.search_random = search_random
-        self.use_padding = use_padding if self.mask_len is None else False
+        self.use_padding = use_padding
 
-        data_pd = pd.read_pickle(filepath)
-        len_data = data_pd.shape[0]
+        with open(filepath, 'rb') as f:
+            data = pickle.load(f)
 
-        t = data_pd['t'].values
-        x = data_pd['x'].values + 20.
+        t = data['t']
+        theta = data['theta']
+        omega = data['omega']
         t_s = t[1] - t[0]
-        
-        data = x.reshape(1,-1)
-
-        splines = []
-        for i in range(data.shape[0]):
-            spline = interp1d(np.arange(t.shape[0]), data[i], kind='cubic', fill_value=1e-6, bounds_error=False)
+        splines =[]
+        theta = theta[np.isnan(theta).sum(axis=1)==0]
+        data_len = theta.shape[0]
+        self.dsize = data_len
+        for i in range(data_len):
+            spline = interp1d(np.arange(t.size), theta[i], kind='cubic', fill_value=1e-6, bounds_error=False)
             splines.append(spline)
-        
-        data_idxs = np.arange(data.shape[0],dtype=int).reshape(-1,1)
-        # get the metadata
-        metadata = np.zeros((data.shape[0], 1))
-        y = data.copy()
-        
-        dsize = data.shape[0]
-        self.dsize = dsize
-
-        if self.mask_len is not None:
-            # this is usually used for inference
-            data[:, self.mask_len:] = 0.
-            metadata[:, -1] = self.mask_len - 1
-
-        if self.use_padding:
-            # this is usually used for training
-            seg_len = 1
-            repeats = data.shape[1] // seg_len - 1
-            data = np.tile(data,(repeats,1))
-            y = data.copy()
-            metadata = np.tile(metadata,(repeats,1))
-            data_idxs = np.tile(data_idxs,(repeats,1))
-            
-            for i in range(repeats):
-                data[i*dsize:(i+1)*dsize,(i+1)*seg_len:] = 0.
-                metadata[i*dsize:(i+1)*dsize,-1] = i
-
-        # select the data in the time range
-        time_range/=t_s
-        t_range_idxs = (metadata[:,-1] >= time_range[0]) & (metadata[:,-1] <= time_range[1])
-        data = data[t_range_idxs]
-        metadata = metadata[t_range_idxs]
-        y = y[t_range_idxs]
-        data_idxs = data_idxs[t_range_idxs]
-
-        # search for future data at random delta time
-        # get a list of random float numbers in the range of 0 to search_len
-        delta_idxs = np.ones((search_num,1))
-        delta_idxs = np.tile(delta_idxs, (data.shape[0], 1))
-        if search_random:
-            delta_idxs = np.random.rand(*delta_idxs.shape) * search_len
+        if self.search_random:
+            delta_idxs = np.random.rand(search_num,data_len,3)
+            delta_idxs[:,:,0] = (delta_idxs[:,:,0] * t.size).astype(int)
+            delta_idxs[:,:,1] = delta_idxs[:,:,1] * search_len
+            delta_idxs[:,:,2] = delta_idxs[:,:,0] + delta_idxs[:,:,1]
         else:
-            delta_idxs = search_len * .5 * np.ones(delta_idxs.shape)
-        # repeat the data to search_num times
-        data = np.repeat(data, search_num, axis=0)
-        metadata = np.repeat(metadata, search_num, axis=0)
-        y = np.repeat(y, search_num, axis=0)
-        data_idxs = np.repeat(data_idxs, search_num, axis=0)
-        search_idxs = delta_idxs + metadata[:, [-1]] 
-        # get y_interp at the search_idxs for each y using spline interpolation
-        y_interp = np.zeros((y.shape[0], 1))
-        
-        for i in range(y.shape[0]):
-            spline = splines[data_idxs[i,0]]
-            y_interp[i] = spline(search_idxs[i])
-        metadata = np.concatenate((metadata, delta_idxs, y_interp), axis=1)
+            delta_idxs = np.ones((search_num,data_len,3))
+            delta_idxs[:,:,0] = np.linspace(1,t.size-1,search_num).reshape(-1,1).astype(int)
+            delta_idxs[:,:,1] = delta_idxs[:,:,1] * 0.5 * search_len
+            delta_idxs[:,:,2] = delta_idxs[:,:,0] + delta_idxs[:,:,1]
+
+        idxs_paddding = np.ones((search_num,data_len,t.size))
+        idxs_paddding *= np.arange(t.size)
+        idxs_paddding = (idxs_paddding > delta_idxs[:,:,[0]]) 
+        data_idxs = np.arange(data_len,dtype=int)
+        data_padding = np.repeat(np.expand_dims(theta,axis=0),search_num,axis=0)
+        data_padding[idxs_paddding] = 0.
+        data_idxs = np.repeat(np.expand_dims(data_idxs,axis=0),search_num,axis=0)
+        # Unfold the data
+        data_padding = data_padding.reshape(-1,t.size)
+        delta_idxs = delta_idxs.reshape(-1,delta_idxs.shape[-1])
+        data_idxs = data_idxs.reshape(-1)
+        # Get the metadata
+        metadata = delta_idxs
+        tmp = metadata[:,2].copy()
+        for i in range(metadata.shape[0]):
+            spline = splines[data_idxs[i]]
+            metadata[i,2] = spline(metadata[i,2])
+
+        # Get the data
+        data = data_padding
         self.data = torch.from_numpy(data).float()
-        # (metadata, t, search_idxs, y_interp)
+        # (t, idx_delta, y)
         self.metadata = torch.from_numpy(metadata).float()
 
         print(f"Data shape: {self.data.shape}")
@@ -233,6 +208,81 @@ def draw_valid(fig_valid,pred_list,y_list,accuracy_threshold=.2):
     ax.set_xlabel('Pred')
     ax.set_ylabel('Label')
     fig_valid.savefig('figures/validation.jpg',dpi=300)
+
+
+def grf_1d():
+    # Correlation function
+    def rho(h, a=1, nu=1):
+        return np.exp(- (h / a)**(2*nu))
+
+    # Space discretization
+    x = np.linspace(-10, 10, 2000)
+    dx = x[1] - x[0]
+
+    # Distance matrix
+    H = np.abs(x[:, np.newaxis] - x)
+
+    # Covariance matrix
+    sigma = rho(H)
+    sigma += 1e-6 * np.eye(sigma.shape[0])
+
+    # Cholesky factorization
+    L = cholesky(sigma, lower=True)
+
+    # Independent standard Gaussian random variables
+    z = np.random.normal(size=x.size)
+
+    # Gaussian random field
+    y = np.dot(L, z)
+    spline = CubicSpline(x, y)
+    return spline
+
+class dotdict(dict):
+    """dot.notation access to dictionary attributes."""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+def runge_kutta(f, x, u, h):
+    """f(x, u) -> next_x."""
+    k1 = f(x, u)
+    k2 = f(x + 0.5 * h * k1, u)
+    k3 = f(x + 0.5 * h * k2, u)
+    k4 = f(x + h * k3, u)
+    next_x = x + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
+    return next_x
+
+def integrate(method, f, control, x0, h, N):
+    soln = dotdict()
+    soln.x = []
+    soln.t = []
+    soln.u = []
+
+    x = x0
+
+    t = 0 * h
+    u = control(t, x)
+    soln.x.append(x)
+
+
+    for n in range(1, N):
+        # log previous control
+        soln.t.append(t)
+        soln.u.append(u)
+        # compute next state
+        x_next = runge_kutta(f, x, u, h)
+        # log next state
+        soln.x.append(x_next)
+        x = x_next
+        t = n * h
+        u = control(t, x)
+
+    soln.x = np.vstack(soln.x)
+    soln.t = np.vstack(soln.t)
+    soln.u = np.vstack(soln.u)
+
+    return soln
+
 
 if __name__ == '__main__':
     pass   
