@@ -21,7 +21,11 @@ T = 10
 h = 0.01
 N = int(T/h)
 x = np.array([0.1,1.0])
-n_spline = 1
+n_spline = 120
+x = np.random.rand(n_spline,2)
+x[:,0] = x[:,0] * 2 * np.pi - np.pi
+x[:,1] = x[:,1] * 2 *8 - 8
+x[:,1] *= 0.
 
 def u_maker(func):
     def u(t, x):
@@ -31,9 +35,9 @@ def u_maker(func):
 
 def control(t, x):
     theta, theta_dot = x
-    #return -0.80 * theta_dot
+    return -0.80 * theta_dot
     #return np.sin(t/2)
-    return np.sin(t/2) - 0.80 * theta_dot
+    #return np.sin(t/2) - 0.80 * theta_dot
     
 
 splines=[]
@@ -42,9 +46,9 @@ outputs={}
 for i in range(n_spline):
     spline = grf_1d()
     splines.append(spline)
-    u = u_maker(spline)
-    #u = control
-    soln = integrate(runge_kutta, pendulum, u, x, h, N)
+    #u = u_maker(spline)
+    u = control
+    soln = integrate(runge_kutta, pendulum, u, x[i], h, N)
     theta = np.vstack((theta,soln.x[:-1,0].T)) if i>0 else (soln.x[:-1,0].T).reshape(1,-1)
     theta_dot = np.vstack((theta_dot,soln.x[:-1,1].T)) if i>0 else (soln.x[:-1,1].T).reshape(1,-1)
     if i%100==0:
@@ -53,9 +57,11 @@ for i in range(n_spline):
 outputs['theta'] = theta
 outputs['omega'] = theta_dot
 outputs['t'] = soln.t
-#outputs['u'] = splines
 
 # save the data in pickle format
-with open('data/pendulum_test.pkl', 'wb') as f:
+#filename = 'data/pendulum_random_init_2.pkl'
+#filename = 'data/pendulum_test_random_init.pkl'
+filename = 'data/pendulum_test_random_init_stat.pkl'
+with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
-print('Data saved in data/pendulum_test.pkl .')
+print(f'Data saved in {filename} .')

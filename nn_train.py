@@ -22,11 +22,11 @@ class LSTM_DeepONet(nn.Module):
     def __init__(self):
         super(LSTM_DeepONet, self).__init__()
         d_latent = 150
-        d_rnn = 10
+        d_rnn = 50
         self.layernorm=nn.LayerNorm([d_latent])
         self.layernorm_x_n=nn.LayerNorm([d_latent])
         self.layernorm_delta_t=nn.LayerNorm([d_latent])
-        self.lstm = nn.LSTM(d_latent,d_rnn,1,batch_first=True,dropout=0.)
+        self.lstm = nn.LSTM(d_latent,d_rnn,2,batch_first=True,dropout=0.)
 
         input_mlp = nn.Sequential(
             
@@ -149,6 +149,9 @@ def train_loop(dataloader, model, loss_fn, optimizer, input_transform=None, targ
     train_loss=train_loss.item()/num_batches
     train_accuracy=((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()
     train_accuracy=train_accuracy.item()/torch.numel(y_list)*100
+    #train_mape = (torch.abs(pred_list-y_list)/torch.abs(y_list)).mean().item()*100
+    train_l2 = torch.sqrt(((pred_list-y_list)**2).sum() / (y_list**2).sum()) * 100
+    train_accuracy = 100 - train_l2.item()
     
     r2=1-((pred_list-y_list)**2).sum()/((y_list-y_list.mean())**2).sum()
     
@@ -181,7 +184,11 @@ def valid_loop(dataloader, model, loss_fn, input_transform=None, target_transfor
     valid_loss=valid_loss.item()/num_batches
     valid_accuracy=((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()
     valid_accuracy=valid_accuracy.item()/torch.numel(y_list)*100
-    #valid_accuracy = 100 - (torch.abs(pred_list-y_list)/y_list).mean().item()*100
+    valid_mape = (torch.abs(pred_list-y_list)/torch.abs(y_list)).mean().item()*100
+    #valid_accuracy = valid_mape
+
+    valid_l2 = torch.sqrt(((pred_list-y_list)**2).sum() / (y_list**2).sum()) * 100
+    valid_accuracy = 100 - valid_l2.item()
     r2=1-((pred_list-y_list)**2).sum()/((y_list-y_list.mean())**2).sum()
 
     return (pred_list,y_list), (valid_loss, valid_accuracy, r2)
@@ -214,9 +221,9 @@ if __name__ == "__main__":
     np.random.seed(999)
 
     train_dataset = Pendulum_Dataset(
-        filepath='data/pendulum.pkl',
+        filepath='data/lorenz_random_init.pkl',
         search_len=2,
-        search_num=20,
+        search_num=40,
         use_padding=True,
         search_random = True,
         device=device_glob,

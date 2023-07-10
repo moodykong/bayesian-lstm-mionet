@@ -27,6 +27,9 @@ if __name__ == "__main__":
     print(f"\n-------------------------------\nInferring ...")
     device_glob = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    torch.manual_seed(999)
+    np.random.seed(999)
+
     # reconstruct the model class
     model = LSTM_DeepONet()
     model.to(device=device_glob)
@@ -35,7 +38,7 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_path='models/best_model_129.pt'
+    model_path='models/best_model_31.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -44,11 +47,11 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Pendulum_Dataset(
-        filepath='data/pendulum_test.pkl',
+        filepath='data/lorenz_random_test_init_stat.pkl',
         search_len=2,
-        search_num=999,
+        search_num=40,
         use_padding=True,
-        search_random=False,
+        search_random=True,
         device=device_glob,
         transform=standarize_X,
         target_transform=standarize_metadata,
@@ -127,9 +130,9 @@ if __name__ == "__main__":
         #ani = animation.FuncAnimation(fig, update_fig, frames=frame_num, interval=100, blit=True)
         #ani.save('figures/infer_anim'+ fig_name_suffix +'.gif', writer='pillow', fps=1, dpi=300)
         
-        ax.plot(np.arange(X_list.shape[1])/100,X_list[[-1]].T,linestyle='-',marker='none',color ='green',label='X')
-        ax.plot(t_list/100,pred_list,linestyle='none',marker='.',color='red',label='pred')
-        #ax.plot(t_list,y_list,linestyle='--',color='green',alpha=0.7,label='label')
+        #ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
+        #ax.plot(t_list/100,pred_list,linestyle='none',marker='.',color='red',label='pred')
+        ##ax.plot(t_list,y_list,linestyle='--',color='green',alpha=0.7,label='label')
 
         # calculate inference statistics
         infer_accuracy = ((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()
@@ -137,14 +140,29 @@ if __name__ == "__main__":
         r2=1-((pred_list-y_list)**2).sum()/((y_list-y_list.mean())**2).sum()
         rmse=np.sqrt(((pred_list-y_list)**2).mean(axis=(0,1)))
         mae=np.abs((pred_list-y_list)).mean(axis=(0,1))
-        mape_idxs = torch.abs(y_list) > 0.1
-        mape=torch.abs(pred_list[mape_idxs]-y_list[mape_idxs])/torch.abs(y_list[mape_idxs])
-        #mape = torch.nanmean(mape[(mape>0.)*(mape<1.01)])*100
-        mape = torch.nanmean(mape)*100
-    
+        idxs_select = torch.abs(y_list) > 1e-6
+        
+        #mape=torch.abs(pred_list[idxs_select]-y_list[idxs_select])/torch.abs(y_list[idxs_select])
+        #mape = torch.nanmean(mape)*100
+
+        # calculate inference L2 norm
+        diff = pred_list[idxs_select]-y_list[idxs_select]
+        l2_norm_diff = torch.sqrt((diff**2).sum(axis=0))
+        l2_norm_y = torch.sqrt((y_list[idxs_select]**2).sum(axis=0))
+        l2_percent = l2_norm_diff/l2_norm_y * 100
+        # reshape pred_list and y_list to 2D array with shape (-1, 40)
+        pred_list_mat = pred_list.reshape(-1,dataset.search_num)
+        y_list_mat = y_list.reshape(-1,dataset.search_num)
+        pred_list_mat = torch.where(torch.abs(y_list_mat)>1e-6,pred_list_mat,torch.nan)
+        y_list_mat = torch.where(torch.abs(y_list_mat)>1e-6,y_list_mat,torch.nan)
+        diff_mat = pred_list_mat - y_list_mat
+        l2_norm_diff_mat = torch.sqrt(torch.nansum(diff_mat**2,dim=1))
+        l2_norm_y_mat = torch.sqrt(torch.nansum(y_list_mat**2,dim=1))
+        l2_percent_mat = l2_norm_diff_mat/l2_norm_y_mat * 100
+        
         # output and figure drawing
         print(f"-------------------------------")
-        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nMAPE: {(mape):.2f} %\nR2: {r2:.2f}\n"
+        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nL2: mean = {(l2_percent_mat.mean(dim=0)):.2f} %, std = {(l2_percent_mat.std(dim=0)):.2f}  %\nR2: {r2:.2f}\n"
         print(print_txt)
         info_txt = print_txt
         at = AnchoredText(info_txt, prop=dict(size=6),loc='lower center', frameon=False)
@@ -160,7 +178,7 @@ if __name__ == "__main__":
         ax.set_prop_cycle(color=[cm(1.*i/num_colors) for i in range(num_colors)])
         ax.scatter(pred_list,y_list,marker='.')    
 
-        ax.plot([0,xylim],[[0,0,0],[xylim,xylim*(1-accuracy_threshold),xylim*(1+accuracy_threshold)]],linestyle='dashed')
+        #ax.plot([0,xylim],[[0,0,0],[xylim,xylim*(1-accuracy_threshold),xylim*(1+accuracy_threshold)]],linestyle='dashed')
         ax.set_xlim([0,xylim])
         ax.set_ylim([0,xylim])
         ax.set_xlabel('Pred')

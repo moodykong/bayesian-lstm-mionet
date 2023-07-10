@@ -42,11 +42,13 @@ class Pendulum_Dataset(Dataset):
             data = pickle.load(f)
 
         t = data['t']
-        theta = data['theta']
-        omega = data['omega']
+        theta = data['x']
+        omega = data['y']
         t_s = t[1] - t[0]
         splines =[]
-        theta = theta[np.isnan(theta).sum(axis=1)==0]
+        theta = theta[np.isnan(theta).sum(axis=1)==0] + 1e-6
+        #theta = theta[np.abs(theta[:,0])<(0.98*np.pi)]
+        #theta = theta[np.abs(theta[:,0])>(0.02*np.pi)] 
         data_len = theta.shape[0]
         self.dsize = data_len
         for i in range(data_len):
@@ -76,13 +78,17 @@ class Pendulum_Dataset(Dataset):
         data_idxs = data_idxs.reshape(-1)
         # Get the metadata
         metadata = delta_idxs
-        tmp = metadata[:,2].copy()
+        
         for i in range(metadata.shape[0]):
             spline = splines[data_idxs[i]]
             metadata[i,2] = spline(metadata[i,2])
 
         # Get the data
         data = data_padding
+        #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
+        #data = data[idxs_select]
+        #metadata = metadata[idxs_select]
+
         self.data = torch.from_numpy(data).float()
         # (t, idx_delta, y)
         self.metadata = torch.from_numpy(metadata).float()
@@ -168,7 +174,7 @@ def load_ckp(checkpoint_fpath, model, optimizer):
 def draw_loss(fig_train,epochs_tonow,loss_epoch,accuracy_epoch,accuracy_threshold=.2):
     
     fig_train.clear()
-    fig_train.set_size_inches(10, 4)
+    fig_train.set_size_inches(10, 4.8)
     ax0 = fig_train.add_subplot(121)
     ax1 = fig_train.add_subplot(122)
 
@@ -187,7 +193,8 @@ def draw_loss(fig_train,epochs_tonow,loss_epoch,accuracy_epoch,accuracy_threshol
     ax1.xaxis.set_major_locator(MultipleLocator(50))
     ax1.xaxis.set_major_formatter('{x:.0f}')
     ax1.xaxis.set_minor_locator(MultipleLocator(10))
-    ax1.set_title(f"accuracy (\u00B1{accuracy_threshold*100:.2f}%)")
+    #ax1.set_title(f"accuracy (\u00B1{accuracy_threshold*100:.2f}%)")
+    ax1.set_title(f"L2 (%)")
     ax1.legend()
     if epochs_tonow == 0:
         ax0.legend()
@@ -201,10 +208,11 @@ def draw_valid(fig_valid,pred_list,y_list,accuracy_threshold=.2):
     fig_valid.set_size_inches(6.4, 4.8)
     ax = fig_valid.add_subplot()
     ax.scatter(pred_list,y_list,marker='.')
-    xylim = torch.cat((pred_list,y_list),dim=0).max()*1.05
-    ax.plot([0,xylim],[[0,0,0],[xylim,xylim*(1 - accuracy_threshold),xylim*(1 + accuracy_threshold)]])
-    ax.set_xlim([0,xylim])
-    ax.set_ylim([0,xylim])
+    xymax = torch.cat((pred_list,y_list),dim=0).max()*1.05
+    xymin = torch.cat((pred_list,y_list),dim=0).min()*1.05
+    #ax.plot([0,xymax],[[0,0,0],[xymax,xymax*(1 - accuracy_threshold),xymax*(1 + accuracy_threshold)]])
+    ax.set_xlim([xymin,xymax])
+    ax.set_ylim([xymin,xymax])
     ax.set_xlabel('Pred')
     ax.set_ylabel('Label')
     fig_valid.savefig('figures/validation.jpg',dpi=300)
