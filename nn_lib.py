@@ -42,55 +42,71 @@ class Pendulum_Dataset(Dataset):
             data = pickle.load(f)
 
         t = data['t']
-        theta = data['x']
-        omega = data['y']
+        theta = data['theta']
+        omega = data['omega']
+        u = data['u']
         t_s = t[1] - t[0]
-        splines =[]
-        theta = theta[np.isnan(theta).sum(axis=1)==0] + 1e-6
-        #theta = theta[np.abs(theta[:,0])<(0.98*np.pi)]
-        #theta = theta[np.abs(theta[:,0])>(0.02*np.pi)] 
+        splines_theta =[]
+        idxs_select = (np.isnan(theta).sum(axis=1)==0)
+        theta = theta[idxs_select] + 1e-6
+        omega = omega[idxs_select] + 1e-6
+        u = u[idxs_select] + 1e-6
+        
         data_len = theta.shape[0]
         self.dsize = data_len
-        for i in range(data_len):
-            spline = interp1d(np.arange(t.size), theta[i], kind='cubic', fill_value=1e-6, bounds_error=False)
-            splines.append(spline)
-        if self.search_random:
-            delta_idxs = np.random.rand(search_num,data_len,3)
-            delta_idxs[:,:,0] = (delta_idxs[:,:,0] * t.size).astype(int)
-            delta_idxs[:,:,1] = delta_idxs[:,:,1] * search_len
-            delta_idxs[:,:,2] = delta_idxs[:,:,0] + delta_idxs[:,:,1]
-        else:
-            delta_idxs = np.ones((search_num,data_len,3))
-            delta_idxs[:,:,0] = np.linspace(1,t.size-1,search_num).reshape(-1,1).astype(int)
-            delta_idxs[:,:,1] = delta_idxs[:,:,1] * 0.5 * search_len
-            delta_idxs[:,:,2] = delta_idxs[:,:,0] + delta_idxs[:,:,1]
-
-        idxs_paddding = np.ones((search_num,data_len,t.size))
-        idxs_paddding *= np.arange(t.size)
-        idxs_paddding = (idxs_paddding > delta_idxs[:,:,[0]]) 
-        data_idxs = np.arange(data_len,dtype=int)
-        data_padding = np.repeat(np.expand_dims(theta,axis=0),search_num,axis=0)
-        data_padding[idxs_paddding] = 0.
-        data_idxs = np.repeat(np.expand_dims(data_idxs,axis=0),search_num,axis=0)
-        # Unfold the data
-        data_padding = data_padding.reshape(-1,t.size)
-        delta_idxs = delta_idxs.reshape(-1,delta_idxs.shape[-1])
-        data_idxs = data_idxs.reshape(-1)
-        # Get the metadata
-        metadata = delta_idxs
         
+        for i in range(data_len):
+            spline_theta = interp1d(np.arange(t.size), theta[i], kind='cubic', fill_value=1e-6, bounds_error=False)
+            splines_theta.append(spline_theta)
+        
+        if self.search_random:
+            local_idxs = np.random.rand(search_num,data_len,3)
+            local_idxs[:,:,0] = (local_idxs[:,:,0] * (t.size - search_len)).astype(int)
+            local_idxs[:,:,1] = local_idxs[:,:,1] * search_len
+            local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
+        else:
+            local_idxs = np.ones((search_num,data_len,3))
+            local_idxs[:,:,0] = np.linspace(1,t.size-1,search_num).reshape(-1,1).astype(int)
+            local_idxs[:,:,1] = local_idxs[:,:,1] * 0.5 * search_len
+            local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
+
+        mask_idxs = np.ones((search_num,data_len,t.size))
+        mask_idxs *= np.arange(t.size)
+        mask_idxs = (mask_idxs > local_idxs[:,:,[0]]) 
+        
+        # Mask the u
+        data_masked = np.repeat(np.expand_dims(u,axis=0),search_num,axis=0)
+        data_masked[mask_idxs] = 0.
+        
+        data_idxs = np.arange(data_len,dtype=int)
+        data_idxs = np.repeat(np.expand_dims(data_idxs,axis=0),search_num,axis=0)
+        
+        # Unfold the data
+        data_masked = data_masked.reshape(-1,t.size)
+        local_idxs = local_idxs.reshape(-1,local_idxs.shape[-1])
+        data_idxs = data_idxs.reshape(-1)
+        
+        # Get the metadata
+        metadata = local_idxs
+        theta_t = np.zeros(metadata.shape[0])
+
+        # Get the next state
         for i in range(metadata.shape[0]):
-            spline = splines[data_idxs[i]]
-            metadata[i,2] = spline(metadata[i,2])
+            spline_theta = splines_theta[data_idxs[i]]
+            metadata[i,2] = spline_theta(metadata[i,2])
+            theta_t[i] = theta[data_idxs[i],int(metadata[i,0])]
 
         # Get the data
-        data = data_padding
+        data = data_masked
+        metadata = np.insert(metadata,1,theta_t,axis=1)
+        
+        # Remove the points close to zero
         #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
         #data = data[idxs_select]
         #metadata = metadata[idxs_select]
 
         self.data = torch.from_numpy(data).float()
-        # (t, idx_delta, y)
+        # (t, x_n, delta_t, y)
         self.metadata = torch.from_numpy(metadata).float()
 
         print(f"Data shape: {self.data.shape}")

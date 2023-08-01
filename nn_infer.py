@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_path='models/best_model_31.pt'
+    model_path='models/best_model_150.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Pendulum_Dataset(
-        filepath='data/lorenz_random_test_init_stat.pkl',
+        filepath='data/pendulum_u_test_random_init_stat.pkl',
         search_len=2,
         search_num=40,
         use_padding=True,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             
             y = metadata[:,-1].view(-1,1)
             delta_t = metadata[:,-2].view(-1,1)
-            t = metadata[:,-3].view(-1,1)
+            t = metadata[:,0].view(-1,1)
             t_search = t + delta_t
             mask = (X!=0).type(torch.bool)
 
@@ -179,8 +179,8 @@ if __name__ == "__main__":
         ax.scatter(pred_list,y_list,marker='.')    
 
         #ax.plot([0,xylim],[[0,0,0],[xylim,xylim*(1-accuracy_threshold),xylim*(1+accuracy_threshold)]],linestyle='dashed')
-        ax.set_xlim([0,xylim])
-        ax.set_ylim([0,xylim])
+        #ax.set_xlim([0,xylim])
+        #ax.set_ylim([0,xylim])
         ax.set_xlabel('Pred')
         ax.set_ylabel('Label')
         ax.add_artist(at)

@@ -86,8 +86,9 @@ class LSTM_DeepONet(nn.Module):
     def forward_1(self, x, metadata, mask):
         
         t_s = 0.01
-        t = metadata[:,-3].type(torch.int64)
-        x_n = x[:,t].diagonal()
+        t = metadata[:,0].type(torch.int64)
+        #x_n = x[:,t].diagonal()
+        x_n = metadata[:,1]
 
         x = x.unsqueeze(-1)
         x_n = x_n.unsqueeze(-1).unsqueeze(-1)
@@ -127,7 +128,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, input_transform=None, targ
         optimizer.zero_grad()
         
         y = metadata[:,-1].view(-1,1)
-        t = metadata[:,-3]
+        t = metadata[:,0]
         mask = (X!=0.).type(torch.bool)
         
         with autocast():
@@ -169,7 +170,7 @@ def valid_loop(dataloader, model, loss_fn, input_transform=None, target_transfor
         for batch, (X, metadata) in enumerate(dataloader):
             
             y = metadata[:,-1].view(-1,1)
-            t = metadata[:,-3]
+            t = metadata[:,0]
             mask = (X!=0.).type(torch.bool)
             with autocast():
                 # Compute prediction and loss
@@ -221,7 +222,7 @@ if __name__ == "__main__":
     np.random.seed(999)
 
     train_dataset = Pendulum_Dataset(
-        filepath='data/lorenz_random_init.pkl',
+        filepath='data/pendulum_u_random_init.pkl',
         search_len=2,
         search_num=40,
         use_padding=True,
