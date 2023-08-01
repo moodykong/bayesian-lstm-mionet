@@ -46,22 +46,26 @@ outputs={}
 for i in range(n_spline):
     spline = grf_1d()
     splines.append(spline)
-    #u = u_maker(spline)
-    u = control
-    soln = integrate(runge_kutta, pendulum, u, x[i], h, N)
+    #u_i = u_maker(spline)
+    x0_i = x[i]
+    u_i = control
+    soln = integrate(runge_kutta, pendulum, u_i, x0_i, h, N)
     theta = np.vstack((theta,soln.x[:-1,0].T)) if i>0 else (soln.x[:-1,0].T).reshape(1,-1)
     theta_dot = np.vstack((theta_dot,soln.x[:-1,1].T)) if i>0 else (soln.x[:-1,1].T).reshape(1,-1)
+    u = np.vstack((u,soln.u.T)) if i>0 else (soln.u.T).reshape(1,-1)
     if i%100==0:
         print(f'{i} data are generated.')
 
 outputs['theta'] = theta
 outputs['omega'] = theta_dot
 outputs['t'] = soln.t
+outputs['u'] = u
 
 # save the data in pickle format
-#filename = 'data/pendulum_random_init_2.pkl'
+#filename = 'data/pendulum_u_random_init.pkl'
+filename = 'data/pendulum_u_test_random_init_stat.pkl'
 #filename = 'data/pendulum_test_random_init.pkl'
-filename = 'data/pendulum_test_random_init_stat.pkl'
+#filename = 'data/pendulum_test_random_init_stat.pkl'
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
 print(f'Data saved in {filename} .')
