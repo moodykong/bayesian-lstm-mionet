@@ -16,7 +16,7 @@ __author__ = "Zhihao Kong"
 __email__ = 'kong89@purdue.edu'
 __date__ = '2023-06-27'
 
-class Pendulum_Dataset(Dataset):
+class Customize_Dataset(Dataset):
     def __init__(
         self,
         
@@ -42,26 +42,28 @@ class Pendulum_Dataset(Dataset):
             data = pickle.load(f)
 
         t = data['t']
-        theta = data['theta']
-        omega = data['omega']
-        u = data['u']
+        x = data['x']
+        y = data['y']
+        u = data['u'] if 'u' in data else x.copy()
         t_s = t[1] - t[0]
-        splines_theta =[]
-        idxs_select = (np.isnan(theta).sum(axis=1)==0)
-        theta = theta[idxs_select] + 1e-6
-        omega = omega[idxs_select] + 1e-6
+        splines_x =[]
+        # Remove explosion points
+        idxs_select = (np.isnan(x).sum(axis=1)==0)
+        x = x[idxs_select] + 1e-6
+        y = y[idxs_select] + 1e-6
         u = u[idxs_select] + 1e-6
         
-        data_len = theta.shape[0]
+        data_len = x.shape[0]
         self.dsize = data_len
         
         for i in range(data_len):
-            spline_theta = interp1d(np.arange(t.size), theta[i], kind='cubic', fill_value=1e-6, bounds_error=False)
-            splines_theta.append(spline_theta)
+            spline_x = interp1d(np.arange(t.size), x[i], kind='cubic', fill_value=1e-6, bounds_error=False)
+            splines_x.append(spline_x)
         
         if self.search_random:
             local_idxs = np.random.rand(search_num,data_len,3)
-            local_idxs[:,:,0] = (local_idxs[:,:,0] * (t.size - search_len)).astype(int)
+            offset = 0
+            local_idxs[:,:,0] = (offset + local_idxs[:,:,0] * (t.size - offset - search_len)).astype(int)
             local_idxs[:,:,1] = local_idxs[:,:,1] * search_len
             local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
         else:
@@ -74,8 +76,9 @@ class Pendulum_Dataset(Dataset):
         mask_idxs *= np.arange(t.size)
         mask_idxs = (mask_idxs > local_idxs[:,:,[0]]) 
         
-        # Mask the u
-        data_masked = np.repeat(np.expand_dims(u,axis=0),search_num,axis=0)
+        # Mask the input data
+        data_input = y
+        data_masked = np.repeat(np.expand_dims(data_input,axis=0),search_num,axis=0)
         data_masked[mask_idxs] = 0.
         
         data_idxs = np.arange(data_len,dtype=int)
@@ -88,17 +91,17 @@ class Pendulum_Dataset(Dataset):
         
         # Get the metadata
         metadata = local_idxs
-        theta_t = np.zeros(metadata.shape[0])
+        x_t = np.zeros(metadata.shape[0])
 
         # Get the next state
         for i in range(metadata.shape[0]):
-            spline_theta = splines_theta[data_idxs[i]]
-            metadata[i,2] = spline_theta(metadata[i,2])
-            theta_t[i] = theta[data_idxs[i],int(metadata[i,0])]
+            spline_x = splines_x[data_idxs[i]]
+            metadata[i,2] = spline_x(metadata[i,2])
+            x_t[i] = x[data_idxs[i],int(metadata[i,0])]
 
         # Get the data
         data = data_masked
-        metadata = np.insert(metadata,1,theta_t,axis=1)
+        metadata = np.insert(metadata,1,x_t,axis=1)
         
         # Remove the points close to zero
         #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
