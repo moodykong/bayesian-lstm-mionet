@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from nn_lib import Pendulum_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
+from nn_lib import Customize_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from nn_train import LSTM_DeepONet
 from matplotlib.offsetbox import AnchoredText
@@ -38,7 +38,10 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_path='models/best_model_150.pt'
+    #model_path='models/best_model_150.pt'
+    #model_path='models/best_model_655.pt'
+    #model_path='models/best_model_352.pt'
+    model_path='models/rand_initial_lorenz/y_t20/best_model_786.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -46,10 +49,10 @@ if __name__ == "__main__":
     model.eval()
 
     # define the dataset
-    dataset = Pendulum_Dataset(
-        filepath='data/pendulum_u_test_random_init_stat.pkl',
+    dataset = Customize_Dataset(
+        filepath='data/lorenz_random_test_init_stat.pkl',
         search_len=2,
-        search_num=40,
+        search_num=50,
         use_padding=True,
         search_random=True,
         device=device_glob,
@@ -96,7 +99,7 @@ if __name__ == "__main__":
         fig.set_size_inches(6.4,4.8)
         ax.set_prop_cycle(color=[cm(1.*i/num_colors) for i in range(num_colors)])
         ax.set_xlabel('t')
-        ax.set_ylabel(r'$\theta(t)$')
+        ax.set_ylabel('x(t)')
         #ax.set_ylim(ymin=-2,ymax=2)
         ax.set_xlim(xmin=0,xmax=10)
         ax.grid(True)
@@ -150,7 +153,7 @@ if __name__ == "__main__":
         l2_norm_diff = torch.sqrt((diff**2).sum(axis=0))
         l2_norm_y = torch.sqrt((y_list[idxs_select]**2).sum(axis=0))
         l2_percent = l2_norm_diff/l2_norm_y * 100
-        # reshape pred_list and y_list to 2D array with shape (-1, 40)
+        # reshape pred_list and y_list to 2D array with shape (-1, search_num)
         pred_list_mat = pred_list.reshape(-1,dataset.search_num)
         y_list_mat = y_list.reshape(-1,dataset.search_num)
         pred_list_mat = torch.where(torch.abs(y_list_mat)>1e-6,pred_list_mat,torch.nan)
