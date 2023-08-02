@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from nn_lib import Pendulum_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
+from nn_lib import Customize_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.cuda.amp import autocast, GradScaler
 
@@ -22,7 +22,7 @@ class LSTM_DeepONet(nn.Module):
     def __init__(self):
         super(LSTM_DeepONet, self).__init__()
         d_latent = 150
-        d_rnn = 50
+        d_rnn = 10
         self.layernorm=nn.LayerNorm([d_latent])
         self.layernorm_x_n=nn.LayerNorm([d_latent])
         self.layernorm_delta_t=nn.LayerNorm([d_latent])
@@ -80,14 +80,13 @@ class LSTM_DeepONet(nn.Module):
         self.bias=nn.Parameter(torch.zeros(1))
 
     def forward(self, x, metadata, mask=None):
-        pred = self.forward_1(x, metadata, mask)
+        pred = self.forward_default(x, metadata, mask)
         return pred
 
-    def forward_1(self, x, metadata, mask):
+    def forward_default(self, x, metadata, mask):
         
         t_s = 0.01
         t = metadata[:,0].type(torch.int64)
-        #x_n = x[:,t].diagonal()
         x_n = metadata[:,1]
 
         x = x.unsqueeze(-1)
@@ -221,10 +220,10 @@ if __name__ == "__main__":
     torch.manual_seed(999)
     np.random.seed(999)
 
-    train_dataset = Pendulum_Dataset(
-        filepath='data/pendulum_u_random_init.pkl',
+    train_dataset = Customize_Dataset(
+        filepath='data/lorenz_random_init.pkl',
         search_len=2,
-        search_num=40,
+        search_num=4,
         use_padding=True,
         search_random = True,
         device=device_glob,
