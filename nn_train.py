@@ -84,18 +84,18 @@ class LSTM_DeepONet(nn.Module):
         return pred
 
     def forward_default(self, x, metadata, mask):
-        
+        # metadata: (t, x_n, y_n, delta_t, x, y)
         t_s = 0.01
         t = metadata[:,0].type(torch.int64)
-        x_n = metadata[:,1]
+        x_n = metadata[:,[1]]
 
         x = x.unsqueeze(-1)
-        x_n = x_n.unsqueeze(-1).unsqueeze(-1)
+        x_n = x_n.unsqueeze(1)
         
         latent_x = self.input_mlp(x)
         latent_x_n = self.x_n_mlp(x_n)
         
-        delta_t = metadata[:,[-2]] * t_s
+        delta_t = metadata[:,[-3]] * t_s
         delta_t = delta_t.unsqueeze(-1)
         
         # normalize
@@ -126,7 +126,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, input_transform=None, targ
         # Zero the gradients
         optimizer.zero_grad()
         
-        y = metadata[:,-1].view(-1,1)
+        y = metadata[:,-2].view(-1,1)
         t = metadata[:,0]
         mask = (X!=0.).type(torch.bool)
         
@@ -168,7 +168,7 @@ def valid_loop(dataloader, model, loss_fn, input_transform=None, target_transfor
         
         for batch, (X, metadata) in enumerate(dataloader):
             
-            y = metadata[:,-1].view(-1,1)
+            y = metadata[:,-2].view(-1,1)
             t = metadata[:,0]
             mask = (X!=0.).type(torch.bool)
             with autocast():
@@ -221,9 +221,9 @@ if __name__ == "__main__":
     np.random.seed(999)
 
     train_dataset = Customize_Dataset(
-        filepath='data/lorenz_random_init.pkl',
+        filepath='data/pendulum_u_random_init_a_001.pkl',
         search_len=2,
-        search_num=4,
+        search_num=10,
         use_padding=True,
         search_random = True,
         device=device_glob,

@@ -38,10 +38,8 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    #model_path='models/best_model_150.pt'
-    #model_path='models/best_model_655.pt'
-    #model_path='models/best_model_352.pt'
-    model_path='models/rand_initial_lorenz/y_t20/best_model_786.pt'
+    
+    model_path='models/rand_initial_pendulum_grf/best_model_328.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -50,9 +48,9 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Customize_Dataset(
-        filepath='data/lorenz_random_test_init_stat.pkl',
+        filepath='data/pendulum_u_test_random_init_a_001_stat.pkl',
         search_len=2,
-        search_num=50,
+        search_num=10,
         use_padding=True,
         search_random=True,
         device=device_glob,
@@ -76,7 +74,7 @@ if __name__ == "__main__":
 
         for X, metadata in dataloader:
             
-            y = metadata[:,-1].view(-1,1)
+            y = metadata[:,-2].view(-1,1)
             delta_t = metadata[:,-2].view(-1,1)
             t = metadata[:,0].view(-1,1)
             t_search = t + delta_t
@@ -165,7 +163,7 @@ if __name__ == "__main__":
         
         # output and figure drawing
         print(f"-------------------------------")
-        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nL2: mean = {(l2_percent_mat.mean(dim=0)):.2f} %, std = {(l2_percent_mat.std(dim=0)):.2f}  %\nR2: {r2:.2f}\n"
+        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nL2: mean = {(l2_percent_mat.mean(dim=0)):.2f} %, std = {(l2_percent_mat.std(dim=0)):.2f}  %, max = {(l2_percent_mat.max()):.2f}  %, min = {(l2_percent_mat.min()):.2f}  %, median = {(l2_percent_mat.median()):.2f}  %\nR2: {r2:.2f}\n"
         print(print_txt)
         info_txt = print_txt
         at = AnchoredText(info_txt, prop=dict(size=6),loc='lower center', frameon=False)

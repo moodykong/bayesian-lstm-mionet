@@ -42,13 +42,14 @@ class Customize_Dataset(Dataset):
             data = pickle.load(f)
 
         t = data['t']
-        x = data['x']
-        y = data['y']
+        x = data['theta']
+        y = data['omega']
         u = data['u'] if 'u' in data else x.copy()
         t_s = t[1] - t[0]
         splines_x =[]
+        splines_y =[]
         # Remove explosion points
-        idxs_select = (np.isnan(x).sum(axis=1)==0)
+        idxs_select = (np.isnan(x).sum(axis=1)==0) & (np.isnan(y).sum(axis=1)==0) & (np.isnan(u).sum(axis=1)==0)
         x = x[idxs_select] + 1e-6
         y = y[idxs_select] + 1e-6
         u = u[idxs_select] + 1e-6
@@ -59,6 +60,8 @@ class Customize_Dataset(Dataset):
         for i in range(data_len):
             spline_x = interp1d(np.arange(t.size), x[i], kind='cubic', fill_value=1e-6, bounds_error=False)
             splines_x.append(spline_x)
+            spline_y = interp1d(np.arange(t.size), y[i], kind='cubic', fill_value=1e-6, bounds_error=False)
+            splines_y.append(spline_y)
         
         if self.search_random:
             local_idxs = np.random.rand(search_num,data_len,3)
@@ -77,7 +80,7 @@ class Customize_Dataset(Dataset):
         mask_idxs = (mask_idxs > local_idxs[:,:,[0]]) 
         
         # Mask the input data
-        data_input = y
+        data_input = u
         data_masked = np.repeat(np.expand_dims(data_input,axis=0),search_num,axis=0)
         data_masked[mask_idxs] = 0.
         
@@ -90,18 +93,24 @@ class Customize_Dataset(Dataset):
         data_idxs = data_idxs.reshape(-1)
         
         # Get the metadata
-        metadata = local_idxs
+        metadata = np.hstack((local_idxs,np.zeros((local_idxs.shape[0],1))))
         x_t = np.zeros(metadata.shape[0])
+        y_t = np.zeros(metadata.shape[0])
 
         # Get the next state
         for i in range(metadata.shape[0]):
             spline_x = splines_x[data_idxs[i]]
-            metadata[i,2] = spline_x(metadata[i,2])
+            spline_y = splines_y[data_idxs[i]]
+            t_n = metadata[i,2]
+            metadata[i,2] = spline_x(t_n)
+            metadata[i,3] = spline_y(t_n)
             x_t[i] = x[data_idxs[i],int(metadata[i,0])]
+            y_t[i] = y[data_idxs[i],int(metadata[i,0])]
 
         # Get the data
         data = data_masked
         metadata = np.insert(metadata,1,x_t,axis=1)
+        metadata = np.insert(metadata,2,y_t,axis=1)
         
         # Remove the points close to zero
         #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
@@ -109,7 +118,7 @@ class Customize_Dataset(Dataset):
         #metadata = metadata[idxs_select]
 
         self.data = torch.from_numpy(data).float()
-        # (t, x_n, delta_t, y)
+        # (t, x_n, y_n, delta_t, x, y)
         self.metadata = torch.from_numpy(metadata).float()
 
         print(f"Data shape: {self.data.shape}")
@@ -239,7 +248,7 @@ def draw_valid(fig_valid,pred_list,y_list,accuracy_threshold=.2):
 
 def grf_1d():
     # Correlation function
-    def rho(h, a=1, nu=1):
+    def rho(h, a=0.01, nu=1):
         return np.exp(- (h / a)**(2*nu))
 
     # Space discretization
