@@ -39,7 +39,8 @@ if __name__ == "__main__":
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
-    model_path='models/rand_initial_pendulum_grf/best_model_328.pt'
+    model_path='models/rand_initial_pendulum_grf_theta/best_model_328.pt'
+    #model_path='models/rand_initial_pendulum_grf_omega/best_model_98.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     dataset = Customize_Dataset(
         filepath='data/pendulum_u_test_random_init_a_001_stat.pkl',
         search_len=2,
-        search_num=10,
+        search_num=100,
         use_padding=True,
         search_random=True,
         device=device_glob,
@@ -73,9 +74,9 @@ if __name__ == "__main__":
         X_list=torch.tensor([], device=torch.device('cpu'))
 
         for X, metadata in dataloader:
-            
+            # metadata: (t, x_n, y_n, delta_t, x, y)
             y = metadata[:,-2].view(-1,1)
-            delta_t = metadata[:,-2].view(-1,1)
+            delta_t = metadata[:,-3].view(-1,1)
             t = metadata[:,0].view(-1,1)
             t_search = t + delta_t
             mask = (X!=0).type(torch.bool)
