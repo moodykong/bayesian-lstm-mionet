@@ -15,6 +15,7 @@ from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import MultipleLocator
 import matplotlib.animation as animation
 import os
+import pandas as pd
 
 __version__ = '1.0.1'
 __author__ = "Zhihao Kong"
@@ -51,9 +52,9 @@ if __name__ == "__main__":
     dataset = Customize_Dataset(
         filepath='data/pendulum_u_test_random_init_a_001_stat.pkl',
         search_len=2,
-        search_num=100,
+        search_num=1000,
         use_padding=True,
-        search_random=True,
+        search_random=False,
         device=device_glob,
         transform=standarize_X,
         target_transform=standarize_metadata,
@@ -73,20 +74,20 @@ if __name__ == "__main__":
         t_list=torch.tensor([], device=torch.device('cpu'))
         X_list=torch.tensor([], device=torch.device('cpu'))
 
-        for X, metadata in dataloader:
+        for U, metadata in dataloader:
             # metadata: (t, x_n, y_n, delta_t, x, y)
             y = metadata[:,-2].view(-1,1)
             delta_t = metadata[:,-3].view(-1,1)
             t = metadata[:,0].view(-1,1)
             t_search = t + delta_t
-            mask = (X!=0).type(torch.bool)
+            mask = (U!=0).type(torch.bool)
 
-            pred = model(X,metadata,mask)
+            pred = model(U,metadata,mask)
 
             pred_list = torch.cat((pred_list,pred.cpu()),0)
             y_list=torch.cat((y_list,y.cpu()),0)
             t_list=torch.cat((t_list,t_search.cpu()),0)
-            X_list=torch.cat((X_list,X.cpu()),0)
+            X_list=torch.cat((X_list,U.cpu()),0)
             
         # Draw Figures
         xylim=torch.cat((y_list,pred_list),0).max()*1.05
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         fig.set_size_inches(6.4,4.8)
         ax.set_prop_cycle(color=[cm(1.*i/num_colors) for i in range(num_colors)])
         ax.set_xlabel('t')
-        ax.set_ylabel('x(t)')
+        ax.set_ylabel(r'$\theta(t)$')
         #ax.set_ylim(ymin=-2,ymax=2)
         ax.set_xlim(xmin=0,xmax=10)
         ax.grid(True)
@@ -132,9 +133,19 @@ if __name__ == "__main__":
         #ani = animation.FuncAnimation(fig, update_fig, frames=frame_num, interval=100, blit=True)
         #ani.save('figures/infer_anim'+ fig_name_suffix +'.gif', writer='pillow', fps=1, dpi=300)
         
+        t_s = 0.01
+        idxs_sort = np.argsort(t_list.squeeze())
+        t_list_sorted = t_list.squeeze()[idxs_sort]
+        pred_list_sorted = pred_list.squeeze()[idxs_sort]
+        y_list_sorted = y_list.squeeze()[idxs_sort]
         #ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
-        #ax.plot(t_list/100,pred_list,linestyle='none',marker='.',color='red',label='pred')
-        ##ax.plot(t_list,y_list,linestyle='--',color='green',alpha=0.7,label='label')
+        ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
+        ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
+        
+        # save the data in csv format with precision of decimal 0.001
+        #df = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted,'label':y_list_sorted})
+        #df = df.round(3)
+        #df.to_csv('data/infer'+ '_theta_single_u_chris_osc' +'.csv',index=False)
 
         # calculate inference statistics
         infer_accuracy = ((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()

@@ -71,7 +71,7 @@ class Customize_Dataset(Dataset):
             local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
         else:
             local_idxs = np.ones((search_num,data_len,3))
-            local_idxs[:,:,0] = np.linspace(1,t.size-1,search_num).reshape(-1,1).astype(int)
+            local_idxs[:,:,0] = np.linspace(1,t.size-search_len,search_num).reshape(-1,1).astype(int)
             local_idxs[:,:,1] = local_idxs[:,:,1] * 0.5 * search_len
             local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
 
