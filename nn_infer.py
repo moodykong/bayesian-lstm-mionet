@@ -41,7 +41,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
     model_path='models/rand_initial_pendulum_grf_theta/best_model_328.pt'
-    #model_path='models/rand_initial_pendulum_grf_omega/best_model_98.pt'
+    #model_path='models/rand_initial_pendulum_grf_omega/best_model_316.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Customize_Dataset(
-        filepath='data/pendulum_u_test_random_init_a_001_stat.pkl',
+        filepath='data/pendulum_u_test_random_init_a_001_stat_sin.pkl',
         search_len=2,
         search_num=1000,
         use_padding=True,
@@ -138,9 +138,9 @@ if __name__ == "__main__":
         t_list_sorted = t_list.squeeze()[idxs_sort]
         pred_list_sorted = pred_list.squeeze()[idxs_sort]
         y_list_sorted = y_list.squeeze()[idxs_sort]
-        #ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
-        ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
-        ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
+        ##ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
+        #ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
+        #ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
         
         # save the data in csv format with precision of decimal 0.001
         #df = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted,'label':y_list_sorted})
