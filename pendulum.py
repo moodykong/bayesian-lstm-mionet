@@ -25,7 +25,8 @@ n_spline = 120
 x = np.random.rand(n_spline,2)
 x[:,0] = x[:,0] * 2 * np.pi - np.pi
 x[:,1] = x[:,1] * 2 *8 - 8
-x[:,1] *= 0.
+#x[:,0] = x[:,0] * 0. + 0.1
+#x[:,1] = x[:,1] * 0. + 1.0
 
 def u_maker(func):
     def u(t, x):
@@ -35,8 +36,8 @@ def u_maker(func):
 
 def control(t, x):
     theta, theta_dot = x
-    return -0.80 * theta_dot
-    #return np.sin(t/2)
+    #return -0.80 * theta_dot
+    return np.sin(t/2)
     #return np.sin(t/2) - 0.80 * theta_dot
     
 
@@ -62,10 +63,10 @@ outputs['t'] = soln.t
 outputs['u'] = u
 
 # save the data in pickle format
-#filename = 'data/pendulum_u_random_init.pkl'
-filename = 'data/pendulum_u_test_random_init_stat.pkl'
-#filename = 'data/pendulum_test_random_init.pkl'
-#filename = 'data/pendulum_test_random_init_stat.pkl'
+#filename = 'data/pendulum_u_random_init_a_001.pkl'
+filename = 'data/pendulum_u_test_random_init_a_001_stat_sin.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_001_single.pkl'
+
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
 print(f'Data saved in {filename} .')

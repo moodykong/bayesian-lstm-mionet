@@ -16,7 +16,7 @@ def lorenz(x, u):
     return np.array([f_x, f_y, f_z])
 
 # for testing, we solve the following:
-T = 20
+T = 40
 h = 0.01
 N = int(T/h)
 x0 = np.array([0.,1.0,1.0])
@@ -63,7 +63,7 @@ outputs['t'] = soln.t
 #filename = 'data/pendulum_test_random_init.pkl'
 #filename = 'data/pendulum_test_random_init_stat.pkl'
 #filename = 'data/lorenz_random_init.pkl'
-filename = 'data/lorenz_random_test_init_stat.pkl'
+filename = 'data/lorenz_random_test_init_t40_stat.pkl'
 
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)

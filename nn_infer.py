@@ -8,13 +8,14 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from nn_lib import Pendulum_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
+from nn_lib import Customize_Dataset, save_ckp, load_ckp, StandardScaler, draw_loss, draw_valid
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from nn_train import LSTM_DeepONet
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import MultipleLocator
 import matplotlib.animation as animation
 import os
+import pandas as pd
 
 __version__ = '1.0.1'
 __author__ = "Zhihao Kong"
@@ -38,7 +39,9 @@ if __name__ == "__main__":
     # load the trained model
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_path='models/best_model_150.pt'
+    
+    model_path='models/rand_initial_pendulum_grf_theta/best_model_328.pt'
+    #model_path='models/rand_initial_pendulum_grf_omega/best_model_316.pt'
 
     model, optimizer, start_epoch, valid_loss_min, standarize_X, standarize_metadata = load_ckp(model_path, model, optimizer)
     
@@ -46,12 +49,12 @@ if __name__ == "__main__":
     model.eval()
 
     # define the dataset
-    dataset = Pendulum_Dataset(
-        filepath='data/pendulum_u_test_random_init_stat.pkl',
+    dataset = Customize_Dataset(
+        filepath='data/pendulum_u_test_random_init_a_001_single_chris_osc.pkl',
         search_len=2,
-        search_num=40,
+        search_num=1000,
         use_padding=True,
-        search_random=True,
+        search_random=False,
         device=device_glob,
         transform=standarize_X,
         target_transform=standarize_metadata,
@@ -71,20 +74,20 @@ if __name__ == "__main__":
         t_list=torch.tensor([], device=torch.device('cpu'))
         X_list=torch.tensor([], device=torch.device('cpu'))
 
-        for X, metadata in dataloader:
-            
-            y = metadata[:,-1].view(-1,1)
-            delta_t = metadata[:,-2].view(-1,1)
+        for U, metadata in dataloader:
+            # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
+            y = metadata[:,-2].view(-1,1)
+            delta_t = metadata[:,-3].view(-1,1)
             t = metadata[:,0].view(-1,1)
             t_search = t + delta_t
-            mask = (X!=0).type(torch.bool)
+            mask = (U!=0).type(torch.bool)
 
-            pred = model(X,metadata,mask)
+            pred = model(U,metadata,mask)
 
             pred_list = torch.cat((pred_list,pred.cpu()),0)
             y_list=torch.cat((y_list,y.cpu()),0)
             t_list=torch.cat((t_list,t_search.cpu()),0)
-            X_list=torch.cat((X_list,X.cpu()),0)
+            X_list=torch.cat((X_list,U.cpu()),0)
             
         # Draw Figures
         xylim=torch.cat((y_list,pred_list),0).max()*1.05
@@ -130,9 +133,24 @@ if __name__ == "__main__":
         #ani = animation.FuncAnimation(fig, update_fig, frames=frame_num, interval=100, blit=True)
         #ani.save('figures/infer_anim'+ fig_name_suffix +'.gif', writer='pillow', fps=1, dpi=300)
         
-        #ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
-        #ax.plot(t_list/100,pred_list,linestyle='none',marker='.',color='red',label='pred')
-        ##ax.plot(t_list,y_list,linestyle='--',color='green',alpha=0.7,label='label')
+        t_s = 0.01
+        idxs_sort = np.argsort(t_list.squeeze())
+        idxs_sort = idxs_sort[1:]
+        t_list_sorted = t_list.squeeze()[idxs_sort]
+        pred_list_sorted = pred_list.squeeze()[idxs_sort]
+        y_list_sorted = y_list.squeeze()[idxs_sort]
+
+        ##ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
+        ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
+        ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
+        
+        # save the data in csv format with precision of decimal 0.001
+        df_pred = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted})
+        df_pred = df_pred.round(3)
+        df_pred.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_pred' +'.txt',index=False,sep=' ',header=False)
+        df_true = pd.DataFrame({'t':t_list_sorted*t_s,'label':y_list_sorted})
+        df_true = df_true.round(3)
+        df_true.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_true' +'.txt',index=False,sep=' ',header=False)
 
         # calculate inference statistics
         infer_accuracy = ((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()
@@ -150,7 +168,7 @@ if __name__ == "__main__":
         l2_norm_diff = torch.sqrt((diff**2).sum(axis=0))
         l2_norm_y = torch.sqrt((y_list[idxs_select]**2).sum(axis=0))
         l2_percent = l2_norm_diff/l2_norm_y * 100
-        # reshape pred_list and y_list to 2D array with shape (-1, 40)
+        # reshape pred_list and y_list to 2D array with shape (-1, search_num)
         pred_list_mat = pred_list.reshape(-1,dataset.search_num)
         y_list_mat = y_list.reshape(-1,dataset.search_num)
         pred_list_mat = torch.where(torch.abs(y_list_mat)>1e-6,pred_list_mat,torch.nan)
@@ -162,7 +180,7 @@ if __name__ == "__main__":
         
         # output and figure drawing
         print(f"-------------------------------")
-        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nL2: mean = {(l2_percent_mat.mean(dim=0)):.2f} %, std = {(l2_percent_mat.std(dim=0)):.2f}  %\nR2: {r2:.2f}\n"
+        print_txt = f"Model Name:\n{os.path.split(model_path)[1]}\nTrain Datasets:\n \nInference Datasets:\n \nRMSE: {rmse:.2f} \nMAE: {mae:.2f} \nL2: mean = {(l2_percent_mat.mean(dim=0)):.2f} %, std = {(l2_percent_mat.std(dim=0)):.2f}  %, max = {(l2_percent_mat.max()):.2f}  %, min = {(l2_percent_mat.min()):.2f}  %, median = {(l2_percent_mat.median()):.2f}  %\nR2: {r2:.2f}\n"
         print(print_txt)
         info_txt = print_txt
         at = AnchoredText(info_txt, prop=dict(size=6),loc='lower center', frameon=False)
