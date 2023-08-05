@@ -84,7 +84,7 @@ class LSTM_DeepONet(nn.Module):
         return pred
 
     def forward_default(self, x, metadata, mask):
-        # metadata: (t, x_n, y_n, delta_t, x, y)
+        # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
         t_s = 0.01
         t = metadata[:,0].type(torch.int64)
         x_n = metadata[:,[1]]
@@ -126,6 +126,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, input_transform=None, targ
         # Zero the gradients
         optimizer.zero_grad()
         
+        # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
         y = metadata[:,-2].view(-1,1)
         t = metadata[:,0]
         mask = (X!=0.).type(torch.bool)
@@ -168,6 +169,7 @@ def valid_loop(dataloader, model, loss_fn, input_transform=None, target_transfor
         
         for batch, (X, metadata) in enumerate(dataloader):
             
+            # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
             y = metadata[:,-2].view(-1,1)
             t = metadata[:,0]
             mask = (X!=0.).type(torch.bool)
