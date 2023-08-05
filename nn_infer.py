@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Customize_Dataset(
-        filepath='data/pendulum_u_test_random_init_a_001_stat_sin.pkl',
+        filepath='data/pendulum_u_test_random_init_a_001_single_chris_osc.pkl',
         search_len=2,
         search_num=1000,
         use_padding=True,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         X_list=torch.tensor([], device=torch.device('cpu'))
 
         for U, metadata in dataloader:
-            # metadata: (t, x_n, y_n, delta_t, x, y)
+            # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
             y = metadata[:,-2].view(-1,1)
             delta_t = metadata[:,-3].view(-1,1)
             t = metadata[:,0].view(-1,1)
@@ -135,17 +135,22 @@ if __name__ == "__main__":
         
         t_s = 0.01
         idxs_sort = np.argsort(t_list.squeeze())
+        idxs_sort = idxs_sort[1:]
         t_list_sorted = t_list.squeeze()[idxs_sort]
         pred_list_sorted = pred_list.squeeze()[idxs_sort]
         y_list_sorted = y_list.squeeze()[idxs_sort]
+
         ##ax.plot(np.arange(X_list.shape[1]-1)/100,X_list[[-1],:-1].T,linestyle='-',marker='none',color ='green',label='X')
-        #ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
-        #ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
+        ax.plot(t_list_sorted*t_s,pred_list_sorted,linestyle='-',marker='none',color='red',label='pred')
+        ax.plot(t_list_sorted*t_s,y_list_sorted,linestyle='--',color='green',alpha=0.7,label='label')
         
         # save the data in csv format with precision of decimal 0.001
-        #df = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted,'label':y_list_sorted})
-        #df = df.round(3)
-        #df.to_csv('data/infer'+ '_theta_single_u_chris_osc' +'.csv',index=False)
+        df_pred = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted})
+        df_pred = df_pred.round(3)
+        df_pred.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_pred' +'.txt',index=False,sep=' ',header=False)
+        df_true = pd.DataFrame({'t':t_list_sorted*t_s,'label':y_list_sorted})
+        df_true = df_true.round(3)
+        df_true.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_true' +'.txt',index=False,sep=' ',header=False)
 
         # calculate inference statistics
         infer_accuracy = ((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()
