@@ -21,12 +21,12 @@ T = 10
 h = 0.01
 N = int(T/h)
 x = np.array([0.1,1.0])
-n_spline = 1
+n_spline = 120
 x = np.random.rand(n_spline,2)
 x[:,0] = x[:,0] * 2 * np.pi - np.pi
 x[:,1] = x[:,1] * 2 *8 - 8
-x[:,0] = x[:,0] * 0. + 0.1
-x[:,1] = x[:,1] * 0. + 1.0
+#x[:,0] = x[:,0] * 0. + 0.1
+#x[:,1] = x[:,1] * 0. + 1.0
 
 def u_maker(func):
     def u(t, x):
@@ -64,8 +64,8 @@ outputs['u'] = u
 
 # save the data in pickle format
 #filename = 'data/pendulum_u_random_init_a_001.pkl'
-#filename = 'data/pendulum_u_test_random_init_a_001_stat.pkl'
-filename = 'data/pendulum_u_test_random_init_a_001_single.pkl'
+filename = 'data/pendulum_u_test_random_init_a_001_stat_sin.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_001_single.pkl'
 
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
