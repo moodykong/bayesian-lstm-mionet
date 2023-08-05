@@ -94,23 +94,23 @@ class Customize_Dataset(Dataset):
         
         # Get the metadata
         metadata = np.hstack((local_idxs,np.zeros((local_idxs.shape[0],1))))
-        x_t = np.zeros(metadata.shape[0])
-        y_t = np.zeros(metadata.shape[0])
+        x_tn = np.zeros(metadata.shape[0])
+        y_tn = np.zeros(metadata.shape[0])
 
         # Get the next state
         for i in range(metadata.shape[0]):
             spline_x = splines_x[data_idxs[i]]
             spline_y = splines_y[data_idxs[i]]
-            t_n = metadata[i,2]
-            metadata[i,2] = spline_x(t_n)
-            metadata[i,3] = spline_y(t_n)
-            x_t[i] = x[data_idxs[i],int(metadata[i,0])]
-            y_t[i] = y[data_idxs[i],int(metadata[i,0])]
+            t_next = metadata[i,2]
+            metadata[i,2] = spline_x(t_next)
+            metadata[i,3] = spline_y(t_next)
+            x_tn[i] = x[data_idxs[i],int(metadata[i,0])]
+            y_tn[i] = y[data_idxs[i],int(metadata[i,0])]
 
         # Get the data
         data = data_masked
-        metadata = np.insert(metadata,1,x_t,axis=1)
-        metadata = np.insert(metadata,2,y_t,axis=1)
+        metadata = np.insert(metadata,1,x_tn,axis=1)
+        metadata = np.insert(metadata,2,y_tn,axis=1)
         
         # Remove the points close to zero
         #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
@@ -118,7 +118,7 @@ class Customize_Dataset(Dataset):
         #metadata = metadata[idxs_select]
 
         self.data = torch.from_numpy(data).float()
-        # (t, x_n, y_n, delta_t, x, y)
+        # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
         self.metadata = torch.from_numpy(metadata).float()
 
         print(f"Data shape: {self.data.shape}")
