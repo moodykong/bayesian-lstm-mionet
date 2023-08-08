@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # define the dataset
     dataset = Customize_Dataset(
-        filepath='data/pendulum_u_test_random_init_a_001_single_chris_osc.pkl',
+        filepath='data/pendulum_u_test_random_init_a_001_single_cos_2.pkl',
         search_len=2,
         search_num=1000,
         use_padding=True,
@@ -147,10 +147,10 @@ if __name__ == "__main__":
         # save the data in csv format with precision of decimal 0.001
         df_pred = pd.DataFrame({'t':t_list_sorted*t_s,'pred':pred_list_sorted})
         df_pred = df_pred.round(3)
-        df_pred.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_pred' +'.txt',index=False,sep=' ',header=False)
+        df_pred.to_csv('data/pendulum_infer'+ '_theta_single_cos_2_pred' +'.txt',index=False,sep=' ',header=False)
         df_true = pd.DataFrame({'t':t_list_sorted*t_s,'label':y_list_sorted})
         df_true = df_true.round(3)
-        df_true.to_csv('data/pendulum_infer'+ '_theta_single_chris_osc_true' +'.txt',index=False,sep=' ',header=False)
+        df_true.to_csv('data/pendulum_infer'+ '_theta_single_cos_2_true' +'.txt',index=False,sep=' ',header=False)
 
         # calculate inference statistics
         infer_accuracy = ((pred_list > y_list * (1-accuracy_threshold)) * (pred_list < y_list * (1+accuracy_threshold))).sum()

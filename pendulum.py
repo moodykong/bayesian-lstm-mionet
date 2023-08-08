@@ -21,7 +21,7 @@ T = 10
 h = 0.01
 N = int(T/h)
 x = np.array([0.1,1.0])
-n_spline = 120
+n_spline = 1
 x = np.random.rand(n_spline,2)
 x[:,0] = x[:,0] * 2 * np.pi - np.pi
 x[:,1] = x[:,1] * 2 *8 - 8
@@ -37,9 +37,11 @@ def u_maker(func):
 def control(t, x):
     theta, theta_dot = x
     #return -0.80 * theta_dot
-    return np.sin(t/2)
+    #return np.sin(t/2)
     #return np.sin(t/2) - 0.80 * theta_dot
-    
+    #return np.cos(t/2) - 0.50 * theta_dot
+    return np.cos(t/2) - 0.10 * t
+    #return np.cos(t/2) - 0.20 * t
 
 splines=[]
 
@@ -64,8 +66,9 @@ outputs['u'] = u
 
 # save the data in pickle format
 #filename = 'data/pendulum_u_random_init_a_001.pkl'
-filename = 'data/pendulum_u_test_random_init_a_001_stat_sin.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_001_stat_sin.pkl'
 #filename = 'data/pendulum_u_test_random_init_a_001_single.pkl'
+filename = 'data/pendulum_u_test_random_init_a_001_single_cos_2.pkl'
 
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
