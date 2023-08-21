@@ -25,6 +25,7 @@ class Customize_Dataset(Dataset):
         search_num = 5,
         search_random = True,
         use_padding = True,
+        offset = 0,
         device = torch.device("cpu"), 
         transform = None, 
         target_transform = None):
@@ -35,6 +36,7 @@ class Customize_Dataset(Dataset):
         self.target_transform = target_transform
         self.search_len = search_len
         self.search_num = search_num
+        self.offset = offset
         self.search_random = search_random
         self.use_padding = use_padding
 
@@ -65,13 +67,15 @@ class Customize_Dataset(Dataset):
         
         if self.search_random:
             local_idxs = np.random.rand(search_num,data_len,3)
-            offset = 0
+            offset = self.offset
             local_idxs[:,:,0] = (offset + local_idxs[:,:,0] * (t.size - offset - search_len)).astype(int)
             local_idxs[:,:,1] = local_idxs[:,:,1] * search_len
             local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
         else:
             local_idxs = np.ones((search_num,data_len,3))
-            local_idxs[:,:,0] = np.linspace(1,t.size-search_len,search_num).reshape(-1,1).astype(int)
+            offset = self.offset
+            idx_end = 1000 - search_len
+            local_idxs[:,:,0] = (offset + np.linspace(1, idx_end , search_num)).reshape(-1,1).astype(int)
             local_idxs[:,:,1] = local_idxs[:,:,1] * 0.5 * search_len
             local_idxs[:,:,2] = local_idxs[:,:,0] + local_idxs[:,:,1]
 
@@ -246,9 +250,9 @@ def draw_valid(fig_valid,pred_list,y_list,accuracy_threshold=.2):
     fig_valid.savefig('figures/validation.jpg',dpi=300)
 
 
-def grf_1d():
+def grf_1d(a=0.01, nu=1):
     # Correlation function
-    def rho(h, a=0.01, nu=1):
+    def rho(h, a=a, nu=nu):
         return np.exp(- (h / a)**(2*nu))
 
     # Space discretization
