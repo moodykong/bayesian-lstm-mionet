@@ -224,8 +224,8 @@ if __name__ == "__main__":
 
     train_dataset = Customize_Dataset(
         filepath='data/pendulum_u_random_init_a_001.pkl',
-        search_len=2,
-        search_num=10,
+        search_len=10,
+        search_num=20,
         use_padding=True,
         search_random = True,
         device=device_glob,

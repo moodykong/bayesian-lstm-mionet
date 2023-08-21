@@ -17,7 +17,7 @@ def pendulum(x, u):
     return np.array([f_theta, f_omega])
 
 # for testing, we solve the following:
-T = 10
+T = 20
 h = 0.01
 N = int(T/h)
 x = np.array([0.1,1.0])
@@ -37,17 +37,16 @@ def u_maker(func):
 def control(t, x):
     theta, theta_dot = x
     #return -0.80 * theta_dot
-    #return np.sin(t/2)
+    return np.sin(t/2)
     #return np.sin(t/2) - 0.80 * theta_dot
     #return np.cos(t/2) - 0.50 * theta_dot
-    return np.cos(t/2) - 0.10 * t
     #return np.cos(t/2) - 0.20 * t
 
 splines=[]
 
 outputs={}
 for i in range(n_spline):
-    spline = grf_1d()
+    spline = grf_1d(a=0.01)
     splines.append(spline)
     #u_i = u_maker(spline)
     x0_i = x[i]
@@ -66,9 +65,12 @@ outputs['u'] = u
 
 # save the data in pickle format
 #filename = 'data/pendulum_u_random_init_a_001.pkl'
-#filename = 'data/pendulum_u_test_random_init_a_001_stat_sin.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_001_stat_sin_T20.pkl'
 #filename = 'data/pendulum_u_test_random_init_a_001_single.pkl'
-filename = 'data/pendulum_u_test_random_init_a_001_single_cos_2.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_001_single_cos_2_T20.pkl'
+#filename = 'data/pendulum_u_test_random_init_single_T20.pkl'
+#filename = 'data/pendulum_u_test_random_init_a_100_stat_T20.pkl'
+filename = 'data/pendulum_u_test_random_init_a_001_single_sin_2_T20.pkl'
 
 with open(filename, 'wb') as f:
     pickle.dump(outputs, f)
