@@ -116,11 +116,6 @@ class Customize_Dataset(Dataset):
         metadata = np.insert(metadata,1,x_tn,axis=1)
         metadata = np.insert(metadata,2,y_tn,axis=1)
         
-        # Remove the points close to zero
-        #idxs_select = (np.abs(metadata[:,-1]) > 1e-6)
-        #data = data[idxs_select]
-        #metadata = metadata[idxs_select]
-
         self.data = torch.from_numpy(data).float()
         # metadata: (t, x_tn, y_tn, delta_t, x_next, y_next)
         self.metadata = torch.from_numpy(metadata).float()
