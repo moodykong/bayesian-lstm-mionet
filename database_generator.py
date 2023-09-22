@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
 from nn_lib import grf_1d, integrate, runge_kutta
-import config.dataset_config as dconf
+import config.dataset_config as conf
 
 
 def run(config):
    
     if config['ode_system']=='pendulum':
-        ode_system = dconf.pendulum
+        ode_system = conf.pendulum
     elif config['ode_system']=='lorentz':
-        ode_system = dconf.lorentz
+        ode_system = conf.lorentz
     else:
         raise ValueError('Invalid ode_system.')
     # Define the time parameters
@@ -29,10 +29,10 @@ def run(config):
     while i < N_sample:
         # Define the control
         if config['control']=='formula':
-            control = dconf.control_formula
+            control = conf.control_formula
         elif config['control']=='grf':
             grf = grf_1d(a=0.01)
-            control = dconf.control_grf(grf)
+            control = conf.control_grf(grf)
         else:
             raise ValueError('Invalid control.')
 
@@ -53,12 +53,12 @@ def run(config):
     else:
         pass
     
-    with open(config['filepath'], 'wb') as f:
+    with open(config['datafile_path'], 'wb') as f:
         np.save(f, data)
-    print(f'Data saved in {config["filepath"]} .')
+    print(f'Data saved in {config["datafile_path"]} .')
 
 def main():
-    config = dconf.get_config()
+    config = conf.get_config()
     run(config)
 
 if __name__ == '__main__':

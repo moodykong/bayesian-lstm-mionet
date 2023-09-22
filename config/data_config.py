@@ -8,7 +8,7 @@ X_INIT_PTS = np.array([
     [-np.pi,np.pi],
     [-8.,8.]]) # initial states range
 CONTROL = 'grf' # 'formula' or 'grf
-FILEPATH = f'data/{ODE_SYSTEM}_ctr_{CONTROL}_N_{N_SAMPLE}_T{T_MAX}.npy'
+DATAFILE_PATH = f'data/{ODE_SYSTEM}_ctr_{CONTROL}_N_{N_SAMPLE}_T{T_MAX}.npy'
 
 def get_config():
     config = {
@@ -18,7 +18,7 @@ def get_config():
         'n_sample': N_SAMPLE,
         'x_init_pts': X_INIT_PTS,
         'control': CONTROL,
-        'filepath': FILEPATH
+        'datafile_path': DATAFILE_PATH
     }
     return config
 

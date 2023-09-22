@@ -11,14 +11,6 @@ from utils.data_utils import dotdict
 
 from typing import Any
 
-
-# MSE loss
-def MSE_fn(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
-    return torch.mean((y_true - y_pred) ** 2)
-
-# MSE loss function
-MAE_fn = torch.nn.L1Loss()
-
 # L2 relative error
 def L2_relative_error(y_true: np.ndarray, y_pred: np.ndarray) -> Any:
     return 100 * np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
@@ -33,18 +25,18 @@ def plot_comparison(
     legend_list:list, 
     xlim: list=None, 
     ylim: list=None, 
-    xlabel: str="Position $x$", 
-    ylabel: str="lift $L(x)$", 
+    xlabel: str="Position $t$", 
+    ylabel: str="State $x(t)$", 
     figsize: list=(14,10), 
     color_list: list=None, 
     linestyle_list: list=None, 
     fig_path: str=None,
     font_size: str='7',
-    k:int=0
+    save_fig:bool=False
     ):
 
     plt.rcParams['font.size'] = font_size
-    axe = plt.subplot(3,2,k+1)
+    axe = plt.subplot()
 
     for x_i, y_i, legend_i, c_i, ls_i in zip(x_list, y_list, legend_list, color_list, linestyle_list):
         axe.plot(x_i.reshape(-1,), y_i.reshape(-1,), lw=2.0, color=c_i, linestyle=ls_i, label=legend_i)
@@ -55,11 +47,11 @@ def plot_comparison(
     axe.set_xlabel(xlabel)
     axe.set_ylabel(ylabel)
     axe.legend()
-    if k==5:
-        if fig_path is not None:
-            plt.savefig(fig_path, bbox_inches="tight")
-        else:
-            plt.show()
+    
+    if save_fig and fig_path is not None:
+        plt.savefig(fig_path, bbox_inches="tight")
+    else:
+        plt.show()
 
 # initialize nn parameters
 def init_params(net: torch.nn) -> list:

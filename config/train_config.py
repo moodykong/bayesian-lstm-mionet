@@ -1,7 +1,7 @@
 import numpy as np
 
 ## Training options ##
-TRAIN_DATASET = 'data/pendulum_ctr_grf_N_1_T20.pkl'
+DATAFILE_PATH = 'data/'
 CHECKPOINT_PATH = "models/"
 MONITOR_METRIC = 'val_loss' # 'val_loss' or 'train_loss'
 USE_TRAINED_MODEL = False
@@ -27,14 +27,9 @@ BATCH_SIZE=128
 EPOCHS=1000
 EARLY_STOPPING_EPOCHS = 100
 
-## Model options ##
-BRANCH_STATE = {'width':100, 'depth':3, 'activation':'relu'}
-BRANCH_MEMORY = {'width':100, 'depth':3, 'lstm_size':10, 'lstm_layer_num':2, 'activation':'relu'}
-TRUNK = {'width':100, 'depth':3, 'activation':'relu'}
-
 def get_config():
     config = {
-        'train_dataset': TRAIN_DATASET,
+        'datafile_path': DATAFILE_PATH,
         'search_len': SEARCH_LEN,
         'search_num': SEARCH_NUM,
         'search_random': SEARCH_RANDOM,
@@ -51,9 +46,6 @@ def get_config():
         'loss_function': LOSS_FUNCTION,
         'early_stopping_epochs': EARLY_STOPPING_EPOCHS,
         'checkpoint_path': CHECKPOINT_PATH, 
-        'branch_state': BRANCH_STATE,
-        'branch_memory': BRANCH_MEMORY,
-        'trunk': TRUNK,
         'monitor_metric': MONITOR_METRIC,
         'use_trained_model': USE_TRAINED_MODEL,
         'trained_model_path': TRAINED_MODEL_PATH

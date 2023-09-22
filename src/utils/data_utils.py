@@ -21,18 +21,18 @@ class dotdict(dict):
 
 # Data generator
 class Dataset_Torch(Dataset):
-    def __init__(self, input_data: np.ndarray, x_n: np.ndarray, x_next: np.ndarray, t_local: np.ndarray) -> None:
+    def __init__(self, input_data: np.ndarray, x_n: np.ndarray, x_next: np.ndarray, t_params: np.ndarray) -> None:
         self.input_data = input_data
         self.x_n = x_n
         self.x_next = x_next
-        self.t_local = t_local
-        self.len = self.t_local.shape[0]
+        self.t_params = t_params
+        self.len = self.t_params.shape[0]
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, idx):
-        return (self.input_data[idx], self.x_n[idx], self.t_local[idx]), self.x_next[idx]
+        return (self.input_data[idx], self.x_n[idx], self.t_params[idx]), self.x_next[idx]
 
 # Operator dataset
 class Dataset_Stat:
@@ -41,12 +41,12 @@ class Dataset_Stat:
         input_data: np.ndarray=np.array([]), 
         x_n: np.ndarray=np.array([]), 
         x_next: np.ndarray=np.array([]), 
-        t_local: np.ndarray=np.array([])) -> None:
+        t_params: np.ndarray=np.array([])) -> None:
 
         self.input_data = input_data
         self.x_n = x_n
         self.x_next = x_next
-        self.t_local = t_local
+        self.t_params = t_params
 
     def update_statistics(self) -> None:
         assert self.input_data.shape[0]
@@ -58,10 +58,10 @@ class Dataset_Stat:
         self.input_data_max = np.max(self.input_data, axis=0)
 
         # For local time input
-        self.t_local_mean = np.mean(self.t_local, axis=0)
-        self.t_local_std = np.std(self.t_local, axis=0)
-        self.t_local_min = np.min(self.t_local, axis=0)
-        self.t_local_max = np.max(self.t_local, axis=0)
+        self.t_params_mean = np.mean(self.t_params, axis=0)
+        self.t_params_std = np.std(self.t_params, axis=0)
+        self.t_params_min = np.min(self.t_params, axis=0)
+        self.t_params_max = np.max(self.t_params, axis=0)
         
         # For trunk input
         self.x_n_mean = np.mean(self.x_n, axis=0)
@@ -135,21 +135,21 @@ def prepare_local_predict_dataset(
     
     # Sample the data
     if search_random:
-        t_local = np.random.rand(search_num,nData,3)
-        t_local[:,:,0] = (offset + t_local[:,:,0] * (t.size - offset - search_len)).astype(int) # Randomly select the starting index
-        t_local[:,:,1] = t_local[:,:,1] * search_len # Randomly select the length of the interval
-        t_local[:,:,2] = t_local[:,:,0] + t_local[:,:,1] # Compute the ending index
+        t_params = np.random.rand(search_num,nData,3)
+        t_params[:,:,0] = (offset + t_params[:,:,0] * (t.size - offset - search_len)).astype(int) # Randomly select the starting index
+        t_params[:,:,1] = t_params[:,:,1] * search_len # Randomly select the length of the interval
+        t_params[:,:,2] = t_params[:,:,0] + t_params[:,:,1] # Compute the ending index
     else:
-        t_local = np.ones((search_num,nData,3)) 
+        t_params = np.ones((search_num,nData,3)) 
         idx_end = t.size - search_len 
-        t_local[:,:,0] = (offset + np.linspace(1, idx_end , search_num)).reshape(-1,1).astype(int) # Select the starting index
-        t_local[:,:,1] = t_local[:,:,1] * 0.5 * search_len # Select the length of the interval
-        t_local[:,:,2] = t_local[:,:,0] + t_local[:,:,1] # Compute the ending index
+        t_params[:,:,0] = (offset + np.linspace(1, idx_end , search_num)).reshape(-1,1).astype(int) # Select the starting index
+        t_params[:,:,1] = t_params[:,:,1] * 0.5 * search_len # Select the length of the interval
+        t_params[:,:,2] = t_params[:,:,0] + t_params[:,:,1] # Compute the ending index
 
     ## Step 3: mask the data
     mask_idxs = np.ones((search_num,nData,t.size))
     mask_idxs *= np.arange(t.size)
-    mask_idxs = (mask_idxs > t_local[:,:,[0]]) 
+    mask_idxs = (mask_idxs > t_params[:,:,[0]]) 
     
     input_traj = u if u is not None else x
     input_masked = np.repeat(np.expand_dims(input_traj,axis=0),search_num,axis=0)
@@ -162,18 +162,18 @@ def prepare_local_predict_dataset(
     
     # Unfold the data
     input_masked = input_masked.reshape(-1,t.size,input_masked.shape[-1])
-    t_local = t_local.reshape(-1,t_local.shape[-1])
+    t_params = t_params.reshape(-1,t_params.shape[-1])
     data_idxs = data_idxs.reshape(-1)
     
     ## Step 5: get the current and next state
-    x_n = np.zeros((t_local.shape[0],input_masked.shape[-1]))
-    x_next = np.zeros((t_local.shape[0],input_masked.shape[-1])) 
+    x_n = np.zeros((t_params.shape[0],input_masked.shape[-1]))
+    x_next = np.zeros((t_params.shape[0],input_masked.shape[-1])) 
     
-    for i in range(t_local.shape[0]):
+    for i in range(t_params.shape[0]):
         idxs_i = data_idxs[i]
         spline_x_i = splines_x[idxs_i]
-        t_n = t_local[i,0]
-        t_next = t_local[i,2]
+        t_n = t_params[i,0]
+        t_next = t_params[i,2]
         
         for j in range(input_masked.shape[-1]):
             x_n[i,j] = x[idxs_i,t_n,j]
@@ -182,7 +182,7 @@ def prepare_local_predict_dataset(
     if verbose:
         print("Shapes for LSTM-MIONet training input={}, x_n={}, x_next={}".format(input_masked.shape, x_n.shape, x_next.shape))
 
-    return (input_masked, x_n, x_next, t_local)
+    return (input_masked, x_n, x_next, t_params)
 
      
 # scale and move dataset to torch
@@ -196,34 +196,34 @@ def scale_and_to_device(
     input_data = copy.deepcopy(dataset.input_data)
     x_n = copy.deepcopy(dataset.x_n)
     x_next = copy.deepcopy(dataset.x_next)
-    t_local = copy.deepcopy(dataset.t_local)
+    t_params = copy.deepcopy(dataset.t_params)
 
     ## step 2: scale the data
     if scale_mode == "normalize":
         input_data = normalize(input_data, dataset.input_data_mean, dataset.input_data_std)
         x_n = normalize(x_n, dataset.x_n_mean, dataset.x_n_std)
         x_next = normalize(x_next, dataset.x_next_mean, dataset.x_next_std)
-        t_local = normalize(t_local, dataset.t_local_mean, dataset.t_local_std)
+        t_params = normalize(t_params, dataset.t_params_mean, dataset.t_params_std)
         
     elif scale_mode == "min-max":
         input_data = minmaxscale(input_data, dataset.input_data_min, dataset.input_data_max)
         x_n = minmaxscale(x_n, dataset.x_n_min, dataset.x_n_max)
         x_next = minmaxscale(x_next, dataset.x_next_min, dataset.x_next_max)
-        t_local = minmaxscale(t_local, dataset.t_local_min, dataset.t_local_max)
+        t_params = minmaxscale(t_params, dataset.t_params_min, dataset.t_params_max)
 
     if requires_grad:
         input_data = torch.from_numpy(input_data).float().to(device).requires_grad_()
         x_n = torch.from_numpy(x_n).float().to(device).requires_grad_()
         x_next = torch.from_numpy(x_next).float().to(device).requires_grad_()
-        t_local = torch.from_numpy(t_local).float().to(device).requires_grad_()
+        t_params = torch.from_numpy(t_params).float().to(device).requires_grad_()
 
     else:
         input_data = torch.from_numpy(input_data).float().to(device)
         x_n = torch.from_numpy(x_n).float().to(device)
         x_next = torch.from_numpy(x_next).float().to(device)
-        t_local = torch.from_numpy(t_local).float().to(device)
+        t_params = torch.from_numpy(t_params).float().to(device)
 
-    return (input_data, x_n, x_next, t_local)
+    return (input_data, x_n, x_next, t_params)
 
 # unnormalize data
 def unnormalize(data: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
