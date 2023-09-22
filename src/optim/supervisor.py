@@ -7,35 +7,60 @@ from torch.utils.data import random_split, DataLoader
 from tqdm.auto import trange
 from typing import Any, Callable
 import utils.torch_utils as torch_utils
-from utils.data_utils import normalize, minmaxscale, unnormalize, unminmaxscale, prepare_test_data, prepare_test_data_HF
-from utils.math_utils import init_params,L2_relative_error, L1_relative_error, plot_comparison
+from utils.data_utils import (
+    normalize,
+    minmaxscale,
+    unnormalize,
+    unminmaxscale,
+    prepare_test_data,
+    prepare_test_data_HF,
+)
+from utils.math_utils import (
+    init_params,
+    L2_relative_error,
+    L1_relative_error,
+    plot_comparison,
+)
 
 import matplotlib.pyplot as plt
 import pylab
-pylab.rcParams['figure.figsize'] = (16.0, 12.0)
+
+pylab.rcParams["figure.figsize"] = (16.0, 12.0)
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scienceplots
 
-def train(config: dict, model: torch.nn, dataset: Any) -> dict:
 
+def train(config: dict, model: torch.nn, dataset: Any) -> dict:
     if config["verbose"]:
-        print("\n***** Training with Adam Optimizer for {} epochs and using {} data samples*****\n".format(config["epochs"], dataset.len))
+        print(
+            "\n***** Training with Adam Optimizer for {} epochs and using {} data samples*****\n".format(
+                config["epochs"], dataset.len
+            )
+        )
 
     ## Step 1: use checkpoint if required
     if config["use_trained_model"]:
         trained_model = torch_utils.restore(config["trained_model_path"])
-        state_dict = trained_model['state_dict']
+        state_dict = trained_model["state_dict"]
         model.load_state_dict(state_dict)
         model.to(device)
 
     ## Step 2: define the optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=config["learning_rate"])
     if config["use_scheduler"]:
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config["scheduler_factor"], patience=config["scheduler_patience"], verbose=config["verbose"])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=config["scheduler_factor"],
+            patience=config["scheduler_patience"],
+            verbose=config["verbose"],
+        )
 
-    loss_fn = torch.nn.L1Loss() if config['loss_function'] == 'MAE' else torch.nn.MSELoss()
+    loss_fn = (
+        torch.nn.L1Loss() if config["loss_function"] == "MAE" else torch.nn.MSELoss()
+    )
     monitor = config["monitor_metric"]
 
     ## Step 3: split the dataset
@@ -44,7 +69,9 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
     train_dataset, val_dataset = random_split(dataset, [num_train, num_val])
 
     ## Step 4: load the dataset
-    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
+    train_loader = DataLoader(
+        train_dataset, batch_size=config["batch_size"], shuffle=True
+    )
     val_loader = DataLoader(val_dataset, batch_size=num_val, shuffle=True)
 
     ## Step 5: initialize best values and logger
@@ -106,7 +133,11 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
                 try:
                     avg_epoch_val_loss = epoch_val_loss / len(val_loader)
                 except ZeroDivisionError as e:
-                    print("error: ", e, "batch size larger than number of training examples")
+                    print(
+                        "error: ",
+                        e,
+                        "batch size larger than number of training examples",
+                    )
 
                 logger["val_loss"].append(avg_epoch_val_loss)
 
@@ -114,13 +145,17 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
             if avg_epoch_loss < best_metric["train_loss"]:
                 best_metric["train_loss"] = avg_epoch_loss
                 if monitor == "train_loss":
-                    checkpoint_path = config['checkpoint_path'] + f"best_train_loss_{epoch}.pt"
+                    checkpoint_path = (
+                        config["checkpoint_path"] + f"best_train_loss_{epoch}.pt"
+                    )
                     torch_utils.save(model, optimizer, save_path=checkpoint_path)
 
             if avg_epoch_val_loss < best_metric["val_loss"]:
                 best_metric["val_loss"] = avg_epoch_val_loss
                 if monitor == "val_loss":
-                    checkpoint_path = config['checkpoint_path'] + f"best_val_loss_{epoch}.pt"
+                    checkpoint_path = (
+                        config["checkpoint_path"] + f"best_val_loss_{epoch}.pt"
+                    )
                     torch_utils.save(model, optimizer, save_path=checkpoint_path)
 
             ## run scheduler
@@ -130,19 +165,19 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
             ## print results
             progress.set_postfix(
                 {
-                    'Train_Loss': avg_epoch_loss,
-                    'Val_Loss': avg_epoch_val_loss,
-                    'Best_train': best_metric["train_loss"],
-                    'Best_Val': best_metric["val_loss"],
-                 }
-                 )
+                    "Train_Loss": avg_epoch_loss,
+                    "Val_Loss": avg_epoch_val_loss,
+                    "Best_train": best_metric["train_loss"],
+                    "Best_Val": best_metric["val_loss"],
+                }
+            )
 
     progress.close()
     del optimizer, train_loader, val_loader
     return logger
 
-def test(config: dict, model: torch.nn, dataset: Any) -> list:
 
+def test(config: dict, model: torch.nn, dataset: Any) -> list:
     if config["verbose"]:
         print("\n***** Testing with {} data samples*****\n".format(dataset.len))
 
@@ -162,14 +197,14 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
         # step a: forward pass without computing gradients
         y_pred = model(x_test_batch).detach().cpu().numpy()
         y_pred_list.append(y_pred)
-        
+
         y_true = y_test_batch.detach().cpu().numpy()
         y_true_list.append(y_true)
-        
+
         t_params = x_test_batch[-1].detach().cpu().numpy()
-        t_next = t_params[-1] 
+        t_next = t_params[-1]
         t_next_list.append(t_next)
-        
+
         del y_pred, y_true, t_params, t_next
 
     # Stack the results to assemble the trajectory
@@ -179,8 +214,8 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
     num_trajs = y_pred.shape[0]
 
     del y_pred_list, y_true_list, t_next_list
-    
-    assert y_pred.shape == y_true.shape == t_next.shape # check the shape of the output
+
+    assert y_pred.shape == y_true.shape == t_next.shape  # check the shape of the output
 
     # Compute validation loss and plot
     for idx in range(num_trajs):
@@ -189,7 +224,7 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
         L2_error_list.append(L2_relative_error(y_true, y_pred))
 
         if (idx in config["plot_idxs"]) and config["plot_trajs"]:
-            fig_filename = config["figure_path"] +"infer_trajs.png"
+            fig_filename = config["figure_path"] + "infer_trajs.png"
             plot_comparison(
                 (t_next.flatten(), t_next.flatten()),
                 (y_true.flatten(), y_pred.flatten()),
@@ -197,11 +232,10 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
                 color_list=("red", "blue"),
                 linestyle_list=("solid", "dashed"),
                 fig_path=fig_filename,
-                save_fig=True
-                )
+                save_fig=True,
+            )
 
-
-    # printing Errors    
+    # printing Errors
     l1_error = np.stack(L1_error_list)
     l1_mean = np.mean(l1_error)
     l1_std = np.std(l1_error)
@@ -211,28 +245,35 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
     l2_std = np.std(l2_error)
 
     if verbose:
-        print('\n=============================')
-        print('     L1-relative Error %      ')
-        print('=============================')
-        print('     mean     st. dev.  ')
-        print('-----------------------------')
-        print(' %9.4f %9.4f' % (l1_mean, l1_std))
-        print('-----------------------------')
+        print("\n=============================")
+        print("     L1-relative Error %      ")
+        print("=============================")
+        print("     mean     st. dev.  ")
+        print("-----------------------------")
+        print(" %9.4f %9.4f" % (l1_mean, l1_std))
+        print("-----------------------------")
 
-        print('\n=============================')
-        print('     L2-relative Error %      ')
-        print('=============================')
-        print('     mean     st. dev.  ')
-        print('-----------------------------')
-        print(' %9.4f %9.4f' % (l2_mean, l2_std))
-        print('-----------------------------')
+        print("\n=============================")
+        print("     L2-relative Error %      ")
+        print("=============================")
+        print("     mean     st. dev.  ")
+        print("-----------------------------")
+        print(" %9.4f %9.4f" % (l2_mean, l2_std))
+        print("-----------------------------")
 
-        print('\n=============================')
-        print('[L1-relative Error list, L2-relative Error list ] %      ')
-        print('=============================')
-        print(np.hstack((l1_error.reshape(len(L1_error_list),1),l2_error.reshape(len(L2_error_list),1))))
+        print("\n=============================")
+        print("[L1-relative Error list, L2-relative Error list ] %     ")
+        print("=============================")
+        print(
+            np.hstack(
+                (
+                    l1_error.reshape(len(L1_error_list), 1),
+                    l2_error.reshape(len(L2_error_list), 1),
+                )
+            )
+        )
 
-    output={}
+    output = {}
     output["L1_error_list"] = L1_error_list
     output["L2_error_list"] = L2_error_list
     output["t_next"] = t_next
