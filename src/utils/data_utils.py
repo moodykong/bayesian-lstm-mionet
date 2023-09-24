@@ -4,6 +4,8 @@
 import copy
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.interpolate import interp1d
+
 import torch
 import utils.torch_utils as torch_utils
 
@@ -57,31 +59,31 @@ class Dataset_Stat:
     ) -> None:
         self.input_data = input_data
         self.x_n = x_n
-        self.x_next = x_next
         self.t_params = t_params
+        self.x_next = x_next
 
     def update_statistics(self) -> None:
         assert self.input_data.shape[0]
 
-        # For brach input
+        # For brach memory input
         self.input_data_mean = np.mean(self.input_data, axis=0)
         self.input_data_std = np.std(self.input_data, axis=0)
         self.input_data_min = np.min(self.input_data, axis=0)
         self.input_data_max = np.max(self.input_data, axis=0)
 
-        # For local time input
-        self.t_params_mean = np.mean(self.t_params, axis=0)
-        self.t_params_std = np.std(self.t_params, axis=0)
-        self.t_params_min = np.min(self.t_params, axis=0)
-        self.t_params_max = np.max(self.t_params, axis=0)
-
-        # For trunk input
+        # For branch state input
         self.x_n_mean = np.mean(self.x_n, axis=0)
         self.x_n_std = np.std(self.x_n, axis=0)
         self.x_n_min = np.min(self.x_n, axis=0)
         self.x_n_max = np.max(self.x_n, axis=0)
 
-        # For DeepONet output
+        # For trunk input
+        self.t_params_mean = np.mean(self.t_params, axis=0)
+        self.t_params_std = np.std(self.t_params, axis=0)
+        self.t_params_min = np.min(self.t_params, axis=0)
+        self.t_params_max = np.max(self.t_params, axis=0)
+
+        # For output
         self.x_next_mean = np.mean(self.x_next, axis=0)
         self.x_next_std = np.std(self.x_next, axis=0)
         self.x_next_min = np.min(self.x_next, axis=0)
@@ -114,9 +116,6 @@ def split_dataset(
     )
 
     # As the data index is on axis=0
-    train_database = database[train_ind]
-    test_database = database[test_ind]
-
     u_train = u[train_ind, :, :] if u is not None else None
     u_test = u[test_ind, :, :] if u is not None else None
     x_train = x[train_ind, :, :]
@@ -139,6 +138,7 @@ def prepare_local_predict_dataset(
     u_data, x_data, t_data = data
     u = copy.deepcopy(u_data) if u_data is not None else None
     x = copy.deepcopy(x_data)
+    x = x[:, :, [0]]
     t = copy.deepcopy(t_data)
     nData = x.shape[0]
 
@@ -162,10 +162,8 @@ def prepare_local_predict_dataset(
     # Sample the data
     if search_random:
         t_params = np.random.rand(search_num, nData, 3)
-        t_params[:, :, 0] = (
-            offset + t_params[:, :, 0] * (t.size - offset - search_len)
-        ).astype(
-            int
+        t_params[:, :, 0] = offset + t_params[:, :, 0] * (
+            t.size - offset - search_len
         )  # Randomly select the starting index
         t_params[:, :, 1] = (
             t_params[:, :, 1] * search_len
@@ -185,6 +183,8 @@ def prepare_local_predict_dataset(
         t_params[:, :, 2] = (
             t_params[:, :, 0] + t_params[:, :, 1]
         )  # Compute the ending index
+
+    t_params = t_params.astype(int)
 
     ## Step 3: mask the data
     mask_idxs = np.ones((search_num, nData, t.size))
@@ -206,8 +206,8 @@ def prepare_local_predict_dataset(
     data_idxs = data_idxs.reshape(-1)
 
     ## Step 5: get the current and next state
-    x_n = np.zeros((t_params.shape[0], input_masked.shape[-1]))
-    x_next = np.zeros((t_params.shape[0], input_masked.shape[-1]))
+    x_n = np.zeros((t_params.shape[0], x.shape[-1]))
+    x_next = np.zeros((t_params.shape[0], x.shape[-1]))
 
     for i in range(t_params.shape[0]):
         idxs_i = data_idxs[i]
@@ -217,7 +217,7 @@ def prepare_local_predict_dataset(
 
         for j in range(input_masked.shape[-1]):
             x_n[i, j] = x[idxs_i, t_n, j]
-            x_next[i, j] = spline_x_i[j](t_next)
+            x_next[i, j] = spline_x_i[j](t_next).item()
 
     if verbose:
         print(
@@ -230,12 +230,11 @@ def prepare_local_predict_dataset(
 
 
 # scale and move dataset to torch
-def scale_and_to_device(
+def scale_and_to_tensor(
     dataset: Dataset_Stat,
     scale_mode: str = "normalize",
-    device: torch.device = torch.device("cuda"),
-    requires_grad: bool = True,
-) -> list:
+    device: torch.device = torch.device("cpu"),
+) -> Any:
     ## step 1: copy dataset data
     input_data = copy.deepcopy(dataset.input_data)
     x_n = copy.deepcopy(dataset.x_n)
@@ -259,17 +258,10 @@ def scale_and_to_device(
         x_next = minmaxscale(x_next, dataset.x_next_min, dataset.x_next_max)
         t_params = minmaxscale(t_params, dataset.t_params_min, dataset.t_params_max)
 
-    if requires_grad:
-        input_data = torch.from_numpy(input_data).float().to(device).requires_grad_()
-        x_n = torch.from_numpy(x_n).float().to(device).requires_grad_()
-        x_next = torch.from_numpy(x_next).float().to(device).requires_grad_()
-        t_params = torch.from_numpy(t_params).float().to(device).requires_grad_()
-
-    else:
-        input_data = torch.from_numpy(input_data).float().to(device)
-        x_n = torch.from_numpy(x_n).float().to(device)
-        x_next = torch.from_numpy(x_next).float().to(device)
-        t_params = torch.from_numpy(t_params).float().to(device)
+    input_data = torch.from_numpy(input_data).float().to(device)
+    x_n = torch.from_numpy(x_n).float().to(device)
+    x_next = torch.from_numpy(x_next).float().to(device)
+    t_params = torch.from_numpy(t_params).float().to(device)
 
     return (input_data, x_n, x_next, t_params)
 

@@ -143,3 +143,11 @@ dmypy.json
 
 # GAN models
 *gan*.pt
+
+# Mlflow
+*/mlruns/
+mlruns/
+
+# Tensorboard
+tensorboard/
+runs/

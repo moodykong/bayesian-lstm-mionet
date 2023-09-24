@@ -3,9 +3,7 @@
 
 # In[1]:
 
-
 import torch
-
 from typing import Any
 
 device = None

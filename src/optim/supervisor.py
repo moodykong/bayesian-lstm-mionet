@@ -4,6 +4,7 @@
 import torch
 
 from torch.utils.data import random_split, DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
 from typing import Any, Callable
 import utils.torch_utils as torch_utils
@@ -22,30 +23,34 @@ from utils.math_utils import (
     plot_comparison,
 )
 
-import matplotlib.pyplot as plt
-import pylab
-
-pylab.rcParams["figure.figsize"] = (16.0, 12.0)
-
 import numpy as np
-import matplotlib.pyplot as plt
-import scienceplots
+import mlflow, mlflow.pytorch
 
 
-def train(config: dict, model: torch.nn, dataset: Any) -> dict:
+def execute_train(
+    config: dict, model: torch.nn, dataset: Any, device: torch.device
+) -> dict:
     if config["verbose"]:
         print(
             "\n***** Training with Adam Optimizer for {} epochs and using {} data samples*****\n".format(
                 config["epochs"], dataset.len
             )
         )
-
-    ## Step 1: use checkpoint if required
+    ## Step 0: initialize the tensorboard writer
+    writer = SummaryWriter()
+    ## Step 1: use trained model if required
     if config["use_trained_model"]:
-        trained_model = torch_utils.restore(config["trained_model_path"])
-        state_dict = trained_model["state_dict"]
-        model.load_state_dict(state_dict)
-        model.to(device)
+        try:
+            trained_model = torch_utils.restore(config["trained_model_path"])
+            state_dict = trained_model["state_dict"]
+            model.load_state_dict(state_dict)
+            print("Trained model loaded successfully")
+        except Exception as e:
+            print(
+                "Error: ",
+                e,
+                "loading trained model failed and new model will be trained instead.",
+            )
 
     ## Step 2: define the optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=config["learning_rate"])
@@ -79,18 +84,20 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
     best_metric["train_loss"] = np.Inf
     best_metric["val_loss"] = np.Inf
 
-    # logger
-    logger = {}
-    logger["train_loss"] = []
-    logger["val_loss"] = []
+    # Metric logger
+    log_metric = {}
+    log_metric["train_loss"] = []
+    log_metric["val_loss"] = []
 
     progress_bar = trange(config["epochs"])
+    stop_ctr = 0
 
     ## Step 6: training loop
-    for epoch in progress_bar:
-        epoch_loss = 0
-        model.train()
+    model.to(device)
 
+    for epoch in progress_bar:
+        model.train()
+        epoch_loss = 0
         for x_batch, y_batch in train_loader:
             ## batch training
 
@@ -111,15 +118,18 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
         try:
             avg_epoch_loss = epoch_loss / len(train_loader)
         except ZeroDivisionError as e:
-            print("error: ", e, "batch size larger than number of training examples")
+            print("Error: ", e, "batch size larger than number of training examples")
 
-        logger["train_loss"].append(avg_epoch_loss)
+        log_metric["train_loss"].append([epoch, avg_epoch_loss])
+
+        writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
+        mlflow.log_metric("train_loss", avg_epoch_loss, epoch)
 
         ## validate and print
         if epoch % config["validate_freq"] == 0 or (epoch + 1) == config["epochs"]:
+            model.eval()
             with torch.no_grad():
                 epoch_val_loss = 0
-                model.eval()
                 for x_val_batch, y_val_batch in val_loader:
                     ## batch validation
 
@@ -134,21 +144,29 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
                     avg_epoch_val_loss = epoch_val_loss / len(val_loader)
                 except ZeroDivisionError as e:
                     print(
-                        "error: ",
+                        "Error: ",
                         e,
                         "batch size larger than number of training examples",
                     )
 
-                logger["val_loss"].append(avg_epoch_val_loss)
+                log_metric["val_loss"].append([epoch, avg_epoch_val_loss])
+                writer.add_scalar("Loss/val", avg_epoch_val_loss, epoch)
+                mlflow.log_metric("val_loss", avg_epoch_val_loss, epoch)
 
             ## save best results
+            stop_ctr += 1
             if avg_epoch_loss < best_metric["train_loss"]:
                 best_metric["train_loss"] = avg_epoch_loss
                 if monitor == "train_loss":
                     checkpoint_path = (
                         config["checkpoint_path"] + f"best_train_loss_{epoch}.pt"
                     )
-                    torch_utils.save(model, optimizer, save_path=checkpoint_path)
+
+                    stop_ctr = 0
+
+                    if config["save_model"]:
+                        # torch_utils.save(model, optimizer, save_path=checkpoint_path)
+                        mlflow.pytorch.log_model(model, f"best_model_epoch_{epoch}")
 
             if avg_epoch_val_loss < best_metric["val_loss"]:
                 best_metric["val_loss"] = avg_epoch_val_loss
@@ -156,7 +174,12 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
                     checkpoint_path = (
                         config["checkpoint_path"] + f"best_val_loss_{epoch}.pt"
                     )
-                    torch_utils.save(model, optimizer, save_path=checkpoint_path)
+
+                    stop_ctr = 0
+
+                    if config["save_model"]:
+                        # torch_utils.save(model, optimizer, save_path=checkpoint_path)
+                        mlflow.pytorch.log_model(model, f"best_model_epoch_{epoch}")
 
             ## run scheduler
             if config["use_scheduler"]:
@@ -165,19 +188,24 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
             ## print results
             progress_bar.set_postfix(
                 {
-                    "Train_Loss": avg_epoch_loss,
-                    "Val_Loss": avg_epoch_val_loss,
-                    "Best_train": best_metric["train_loss"],
-                    "Best_Val": best_metric["val_loss"],
+                    "Current_train_loss": avg_epoch_loss,
+                    "Current_val_loss": avg_epoch_val_loss,
+                    "Best_train_loss": best_metric["train_loss"],
+                    "Best_Val_loss": best_metric["val_loss"],
                 }
             )
 
+            ## early stopping
+            if stop_ctr > config["early_stopping_epochs"]:
+                print("Early Stopping.")
+                break
+
     progress_bar.close()
     del optimizer, train_loader, val_loader
-    return logger
+    return log_metric
 
 
-def test(config: dict, model: torch.nn, dataset: Any) -> list:
+def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
     if config["verbose"]:
         print("\n***** Testing with {} data samples*****\n".format(dataset.len))
 
@@ -185,33 +213,37 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
     test_loader = DataLoader(dataset, batch_size=dataset.len, shuffle=False)
 
     ## Step 2: infer at each time step
-    # Errors
+    # Error metrics
     L1_error_list = []
     L2_error_list = []
     t_next_list = []
     y_pred_list = []
     y_true_list = []
 
+    ## Step 3: infer at each time step
+    model.eval()
+
     for idx, (x_test_batch, y_test_batch) in enumerate(test_loader):
         ## batch testing
         # step a: forward pass without computing gradients
-        y_pred = model(x_test_batch).detach().cpu().numpy()
-        y_pred_list.append(y_pred)
+        with torch.no_grad():
+            y_pred = model(x_test_batch).detach().cpu().numpy()
+            y_pred_list.append(y_pred)
 
-        y_true = y_test_batch.detach().cpu().numpy()
-        y_true_list.append(y_true)
+            y_true = y_test_batch.detach().cpu().numpy()
+            y_true_list.append(y_true)
 
-        t_params = x_test_batch[-1].detach().cpu().numpy()
-        t_next = t_params[-1]
-        t_next_list.append(t_next)
+            t_params = x_test_batch[-1].detach().cpu().numpy()
+            t_next = t_params[:, [-1]]
+            t_next_list.append(t_next)
 
-        del y_pred, y_true, t_params, t_next
+            del y_pred, y_true, t_params, t_next
 
-    # Stack the results to assemble the trajectory
-    y_pred = np.stack(y_pred_list).reshape(-1, config["search_num"])
-    y_true = np.stack(y_true_list).reshape(-1, config["search_num"])
-    t_next = np.stack(t_next_list).reshape(-1, config["search_num"])
-    num_trajs = y_pred.shape[0]
+    # Stack the results to assemble trajectories
+    y_pred = np.hstack(y_pred_list).reshape(config["search_num"], -1)
+    y_true = np.hstack(y_true_list).reshape(config["search_num"], -1)
+    t_next = np.hstack(t_next_list).reshape(config["search_num"], -1)
+    num_trajs = y_pred.shape[1]
 
     del y_pred_list, y_true_list, t_next_list
 
@@ -226,8 +258,8 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
         if (idx in config["plot_idxs"]) and config["plot_trajs"]:
             fig_filename = config["figure_path"] + "infer_trajs.png"
             plot_comparison(
-                (t_next.flatten(), t_next.flatten()),
-                (y_true.flatten(), y_pred.flatten()),
+                (t_next[:, idx].flatten(), t_next[:, idx].flatten()),
+                (y_true[:, idx].flatten(), y_pred[:, idx].flatten()),
                 ("True", "Pred"),
                 color_list=("red", "blue"),
                 linestyle_list=("solid", "dashed"),
@@ -244,7 +276,7 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
     l2_mean = np.mean(l2_error)
     l2_std = np.std(l2_error)
 
-    if verbose:
+    if config["verbose"]:
         print("\n=============================")
         print("     L1-relative Error %      ")
         print("=============================")
@@ -273,11 +305,11 @@ def test(config: dict, model: torch.nn, dataset: Any) -> list:
             )
         )
 
-    output = {}
-    output["L1_error_list"] = L1_error_list
-    output["L2_error_list"] = L2_error_list
-    output["t_next"] = t_next
-    output["y_pred"] = y_pred
-    output["y_true"] = y_true
+    log_metric = {}
+    log_metric["L1_error_list"] = L1_error_list
+    log_metric["L2_error_list"] = L2_error_list
+    log_metric["t_next"] = t_next
+    log_metric["y_pred"] = y_pred
+    log_metric["y_true"] = y_true
 
-    return output
+    return log_metric

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
 from utils.math_utils import grf_1d, integrate, runge_kutta
-from utils.arg_parser import add_data_args, args_to_config
+from utils.args_parser import add_data_args, args_to_config
 import config.data_config as conf
 from tqdm import tqdm
 from argparse import ArgumentParser
