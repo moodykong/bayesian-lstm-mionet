@@ -15,7 +15,7 @@ from utils.data_utils import (
     split_dataset,
 )
 from config import train_config, architecture_config
-from utils.arg_parser import train_args, architecture_args, args_to_config
+from utils.arg_parser import add_train_args, add_architecture_args, args_to_config
 
 seed = 1234
 
@@ -138,9 +138,9 @@ def main():
     config.update(train_config.get_config())
     config.update(architecture_config.get_config())
     parser = argparse.ArgumentParser()
-    parser = train_args(parser)
-    parser = architecture_args(parser)
-    args_config = args_to_config(parser.parse_args())
+    parser = add_train_args(parser)
+    parser = add_architecture_args(parser)
+    args_config = args_to_config(parser)
     config.update(args_config)
     os.makedirs(config["checkpoint_path"], exist_ok=True)
 

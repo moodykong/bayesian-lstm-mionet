@@ -139,6 +139,7 @@ dmypy.json
 *.h5.bak
 *.filepart
 *.pkl
+*.npy
 
 # GAN models
 *gan*.pt

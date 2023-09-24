@@ -84,10 +84,10 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
     logger["train_loss"] = []
     logger["val_loss"] = []
 
-    progress = trange(config["epochs"])
+    progress_bar = trange(config["epochs"])
 
     ## Step 6: training loop
-    for epoch in progress:
+    for epoch in progress_bar:
         epoch_loss = 0
         model.train()
 
@@ -163,7 +163,7 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
                 scheduler.step(avg_epoch_val_loss)
 
             ## print results
-            progress.set_postfix(
+            progress_bar.set_postfix(
                 {
                     "Train_Loss": avg_epoch_loss,
                     "Val_Loss": avg_epoch_val_loss,
@@ -172,7 +172,7 @@ def train(config: dict, model: torch.nn, dataset: Any) -> dict:
                 }
             )
 
-    progress.close()
+    progress_bar.close()
     del optimizer, train_loader, val_loader
     return logger
 

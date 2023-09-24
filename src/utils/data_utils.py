@@ -5,7 +5,7 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import utils.pytorch_utils as ptu
+import utils.torch_utils as torch_utils
 
 from scipy import interpolate
 from sklearn.model_selection import train_test_split
@@ -353,8 +353,8 @@ def prepare_test_data_HF(
         y_test = minmaxscale(y_test, datasetLF.dataY_min, datasetLF.dataY_max)
 
     ## move to torch
-    U = torch.from_numpy(u_test).float().to(ptu.device)
-    Y = torch.from_numpy(y_test).float().to(ptu.device)
+    U = torch.from_numpy(u_test).float().to(torch_utils.device)
+    Y = torch.from_numpy(y_test).float().to(torch_utils.device)
 
     ## forward pass
     with torch.no_grad():

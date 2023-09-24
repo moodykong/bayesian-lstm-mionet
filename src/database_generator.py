@@ -1,8 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
-from nn_lib import grf_1d, integrate, runge_kutta
-import config.dataset_config as conf
+from utils.math_utils import grf_1d, integrate, runge_kutta
+from utils.arg_parser import add_data_args, args_to_config
+import config.data_config as conf
+from tqdm import tqdm
+from argparse import ArgumentParser
 
 
 def run(config):
@@ -25,25 +28,28 @@ def run(config):
     # Generate the data
     data = dict()
     i = 0
+    progress_bar = tqdm(
+        total=N_sample, desc=f"Generating {N_sample} data ...", dynamic_ncols=True
+    )
     while i < N_sample:
         # Define the control
-        if config["control"] == "formula":
+        if config["ctr_func"] == "designate":
             control = conf.control_formula
-        elif config["control"] == "grf":
+        elif config["ctr_func"] == "gaussian":
             grf = grf_1d(a=0.01)
             control = conf.control_grf(grf)
         else:
-            raise ValueError("Invalid control.")
+            raise ValueError("Invalid ctr_func.")
 
         soln = integrate(runge_kutta, ode_system, control, x_init[i], h, N_time)
+
         if np.isnan(soln.x).sum() + np.isnan(soln.u).sum() > 0:
             continue
         x = np.dstack((x, soln.x[:-1, :])) if i > 0 else soln.x[:-1, :]
         u = np.dstack((u, soln.u)) if i > 0 else soln.u
         i += 1
-        if i % 100 == 0:
-            print(f"{i} data are generated.")
-
+        progress_bar.update(1)
+    progress_bar.close()
     # Save the data
     data["x"] = x
     data["t"] = soln.t
@@ -59,6 +65,10 @@ def run(config):
 
 def main():
     config = conf.get_config()
+    parser = ArgumentParser()
+    parser = add_data_args(parser)
+    args_config = args_to_config(parser)
+    config.update(args_config)
     run(config)
 
 

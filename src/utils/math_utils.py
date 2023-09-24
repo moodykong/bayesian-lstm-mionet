@@ -6,40 +6,58 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.linalg import cholesky
+from scipy.interpolate import CubicSpline
+
 import torch
 from utils.data_utils import dotdict
 
 from typing import Any
 
+
 # L2 relative error
 def L2_relative_error(y_true: np.ndarray, y_pred: np.ndarray) -> Any:
     return 100 * np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
+
 
 # L2 relative error
 def L1_relative_error(y_true: np.ndarray, y_pred: np.ndarray) -> Any:
     return 100 * np.linalg.norm(y_true - y_pred, ord=1) / np.linalg.norm(y_true, ord=1)
 
-def plot_comparison(
-    x_list: list, 
-    y_list: list, 
-    legend_list:list, 
-    xlim: list=None, 
-    ylim: list=None, 
-    xlabel: str="Position $t$", 
-    ylabel: str="State $x(t)$", 
-    figsize: list=(14,10), 
-    color_list: list=None, 
-    linestyle_list: list=None, 
-    fig_path: str=None,
-    font_size: str='7',
-    save_fig:bool=False
-    ):
 
-    plt.rcParams['font.size'] = font_size
+def plot_comparison(
+    x_list: list,
+    y_list: list,
+    legend_list: list,
+    xlim: list = None,
+    ylim: list = None,
+    xlabel: str = "Position $t$",
+    ylabel: str = "State $x(t)$",
+    figsize: list = (14, 10),
+    color_list: list = None,
+    linestyle_list: list = None,
+    fig_path: str = None,
+    font_size: str = "7",
+    save_fig: bool = False,
+):
+    plt.rcParams["font.size"] = font_size
     axe = plt.subplot()
 
-    for x_i, y_i, legend_i, c_i, ls_i in zip(x_list, y_list, legend_list, color_list, linestyle_list):
-        axe.plot(x_i.reshape(-1,), y_i.reshape(-1,), lw=2.0, color=c_i, linestyle=ls_i, label=legend_i)
+    for x_i, y_i, legend_i, c_i, ls_i in zip(
+        x_list, y_list, legend_list, color_list, linestyle_list
+    ):
+        axe.plot(
+            x_i.reshape(
+                -1,
+            ),
+            y_i.reshape(
+                -1,
+            ),
+            lw=2.0,
+            color=c_i,
+            linestyle=ls_i,
+            label=legend_i,
+        )
     if xlim is not None:
         axe.set_xlim(xlim)
     if ylim is not None:
@@ -47,25 +65,26 @@ def plot_comparison(
     axe.set_xlabel(xlabel)
     axe.set_ylabel(ylabel)
     axe.legend()
-    
+
     if save_fig and fig_path is not None:
         plt.savefig(fig_path, bbox_inches="tight")
     else:
         plt.show()
+
 
 # initialize nn parameters
 def init_params(net: torch.nn) -> list:
     list_pars = []
     for p in net.parameters():
         temp = torch.zeros_like(p.data)
-        list_pars.append(temp.cpu().detach().numpy()) 
+        list_pars.append(temp.cpu().detach().numpy())
     return list_pars
 
 
 def grf_1d(a=0.01, nu=1):
     # Correlation function
     def rho(h, a=a, nu=nu):
-        return np.exp(- (h / a)**(2*nu))
+        return np.exp(-((h / a) ** (2 * nu)))
 
     # Space discretization
     x = np.linspace(-10, 10, 2000)
@@ -99,6 +118,7 @@ def runge_kutta(f, x, u, h):
     next_x = x + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
     return next_x
 
+
 def integrate(method, f, control, x0, h, N):
     soln = dotdict()
     soln.x = []
@@ -110,7 +130,6 @@ def integrate(method, f, control, x0, h, N):
     t = 0 * h
     u = control(t, x)
     soln.x.append(x)
-
 
     for n in range(1, N):
         # log previous control
