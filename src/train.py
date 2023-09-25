@@ -52,6 +52,8 @@ def run(config):
     )
     input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
         data=train_data,
+        state_component=config["state_component"],
+        t_max=config["t_max"],
         search_len=config["search_len"],
         search_num=config["search_num"],
         search_random=config["search_random"],
@@ -63,6 +65,7 @@ def run(config):
 
     input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
         data=test_data,
+        state_component=config["state_component"],
         offset=config["offset"],
         t_max=config["t_max"],
         search_len=config["search_len"],
