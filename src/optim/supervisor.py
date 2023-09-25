@@ -94,6 +94,7 @@ def execute_train(
     ## Step 6: training loop
     model = torch.nn.DataParallel(model)
     scalar = GradScaler()
+    mlflow.set_experiment("LSTM_MIONet_Experiment")
 
     for epoch in progress_bar:
         model.train()
@@ -190,10 +191,10 @@ def execute_train(
             ## print results
             progress_bar.set_postfix(
                 {
-                    "Current_train_loss": avg_epoch_loss,
-                    "Current_val_loss": avg_epoch_val_loss,
-                    "Best_train_loss": best_metric["train_loss"],
-                    "Best_Val_loss": best_metric["val_loss"],
+                    "Train": avg_epoch_loss,
+                    "Val": avg_epoch_val_loss,
+                    "Best_train": best_metric["train_loss"],
+                    "Best_Val": best_metric["val_loss"],
                 }
             )
 
@@ -254,8 +255,8 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
     # Compute validation loss and plot
     for idx in range(num_trajs):
         # Compute validation loss
-        L1_error_list.append(L1_relative_error(y_true, y_pred))
-        L2_error_list.append(L2_relative_error(y_true, y_pred))
+        L1_error_list.append(L1_relative_error(y_true[:, idx], y_pred[:, idx]))
+        L2_error_list.append(L2_relative_error(y_true[:, idx], y_pred[:, idx]))
 
         if (idx in config["plot_idxs"]) and config["plot_trajs"]:
             fig_filename = config["figure_path"] + "infer_trajs.png"
