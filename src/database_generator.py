@@ -45,8 +45,12 @@ def run(config):
 
         if np.isnan(soln.x).sum() + np.isnan(soln.u).sum() > 0:
             continue
-        x = np.dstack((x, soln.x[:-1, :])) if i > 0 else soln.x[:-1, :]
-        u = np.dstack((u, soln.u)) if i > 0 else soln.u
+        x = (
+            np.dstack((x, soln.x[:-1, :]))
+            if i > 0
+            else np.expand_dims(soln.x[:-1, :], 2)
+        )
+        u = np.dstack((u, soln.u)) if i > 0 else np.expand_dims(soln.u, 2)
         i += 1
         progress_bar.update(1)
     progress_bar.close()
