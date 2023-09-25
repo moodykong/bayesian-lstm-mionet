@@ -4,6 +4,7 @@
 import torch
 
 from torch.utils.data import random_split, DataLoader
+from torch.cuda.amp import autocast, GradScaler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
 from typing import Any, Callable
@@ -94,26 +95,29 @@ def execute_train(
 
     ## Step 6: training loop
     model.to(device)
+    model = torch.nn.DataParallel(model)
+    scalar = GradScaler()
 
     for epoch in progress_bar:
         model.train()
         epoch_loss = 0
         for x_batch, y_batch in train_loader:
             ## batch training
+            with autocast():
+                # step a: forward pass
+                y_pred = model(x_batch)
 
-            # step a: forward pass
-            y_pred = model(x_batch)
-
-            # step b: compute loss
-            loss = loss_fn(y_pred, y_batch)
+                # step b: compute loss
+                loss = loss_fn(y_pred, y_batch)
 
             # step c: compute gradients and backpropagate
             optimizer.zero_grad()
-            loss.backward()
+            scalar.scale(loss).backward()
 
             # step d: optimize
             epoch_loss += loss.detach().cpu().numpy().squeeze()
-            optimizer.step()
+            scalar.step(optimizer)
+            scalar.update()
 
         try:
             avg_epoch_loss = epoch_loss / len(train_loader)
@@ -132,12 +136,13 @@ def execute_train(
                 epoch_val_loss = 0
                 for x_val_batch, y_val_batch in val_loader:
                     ## batch validation
+                    with autocast():
+                        # step a: forward pass without computing gradients
+                        y_val_pred = model(x_val_batch)
 
-                    # step a: forward pass without computing gradients
-                    y_val_pred = model(x_val_batch)
+                        # step b: compute validation loss
+                        val_loss = loss_fn(y_val_pred, y_val_batch)
 
-                    # step b: compute validation loss
-                    val_loss = loss_fn(y_val_pred, y_val_batch)
                     epoch_val_loss += val_loss.detach().cpu().numpy().squeeze()
 
                 try:
