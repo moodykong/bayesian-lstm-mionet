@@ -63,10 +63,11 @@ def run(config):
 
     input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
         data=test_data,
+        offset=config["offset"],
+        t_max=config["t_max"],
         search_len=config["search_len"],
         search_num=config["search_num"],
         search_random=config["search_random"],
-        offset=config["offset"],
         verbose=config["verbose"],
     )
     test_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)

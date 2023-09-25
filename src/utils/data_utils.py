@@ -132,6 +132,7 @@ def prepare_local_predict_dataset(
     search_num: int = 5,
     search_random: bool = True,
     offset: int = 0,
+    t_max: int = 10,
     state_component: int = 0,
     verbose: bool = True,
 ) -> list:
@@ -142,6 +143,26 @@ def prepare_local_predict_dataset(
     x = x[:, :, [state_component]]
     t = copy.deepcopy(t_data)
     nData = x.shape[0]
+    t = t.squeeze()
+    t_s = t[1] - t[0]
+    t_max = t_max / t_s
+    offset = offset / t_s
+    if offset + search_len > t.size:
+        raise ValueError(
+            "The offset {} + search length {} is larger than the total time length {}.".format(
+                offset, search_len, t.size
+            )
+        )
+
+    # Determine the maximum time index
+    t_max = t_max if (t_max + offset) < t.size else (t.size - offset)
+    t_max = int(t_max)
+    offset = int(offset)
+
+    # Truncate the data
+    u = u[:, 0 : offset + t_max, :] if u is not None else None
+    x = x[:, 0 : offset + t_max, :]
+    t = t[0 : offset + t_max]
 
     ## Step 2: interpolate and sample data
 
@@ -164,7 +185,7 @@ def prepare_local_predict_dataset(
     if search_random:
         t_params = np.random.rand(search_num, nData, 3)
         t_params[:, :, 0] = offset + t_params[:, :, 0] * (
-            t.size - offset - search_len
+            t_max - offset - search_len
         )  # Randomly select the starting index
         t_params[:, :, 1] = (
             t_params[:, :, 1] * search_len
@@ -174,7 +195,7 @@ def prepare_local_predict_dataset(
         )  # Compute the ending index
     else:
         t_params = np.ones((search_num, nData, 3))
-        idx_end = t.size - search_len
+        idx_end = t_max - search_len
         t_params[:, :, 0] = (
             (offset + np.linspace(1, idx_end, search_num)).reshape(-1, 1).astype(int)
         )  # Select the starting index
@@ -275,96 +296,3 @@ def unnormalize(data: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarr
 # unminmax scale data
 def unminmaxscale(data, min_val, max_val):
     return data * (max_val - min_val) + min_val
-
-
-# prepare test data
-def prepare_test_data(
-    u_data: np.ndarray, y_data: np.ndarray, G_data: np.ndarray, nLocs: int = 300
-) -> list:
-    u = copy.deepcopy(u_data)
-    y = copy.deepcopy(y_data)
-    G = copy.deepcopy(G_data)
-
-    f = interpolate.interp1d(y, G, kind="cubic", copy=False, assume_sorted=True)
-    out_loc = np.linspace(y[0], y[-1], nLocs)
-    G_interp = f(out_loc)
-
-    u_vec = np.tile(u.reshape(1, 1), (nLocs, 1)).reshape(nLocs, -1)
-    y_vec = out_loc.reshape(nLocs, 1)
-    G_vec = G_interp.reshape(nLocs, 1)
-
-    return (u_vec, y_vec, G_vec)
-
-
-def preparing_DeepOnet_test_for_optimization(u_data, y_data, nLocs):
-    N = nLocs
-    u_list = []
-    y_list = []
-
-    u = copy.deepcopy(u_data)
-    y = copy.deepcopy(y_data)
-
-    out_loc = np.linspace(y[0], y[-1], N)
-
-    u_list.append(np.tile(u.reshape(1, 20), (N, 1)))
-    y_list.append(out_loc.reshape(N, 1))
-
-    u_vec = np.stack(u_list).reshape(N, -1)
-    y_vec = np.stack(y_list).reshape(N, -1)
-
-    return u_vec, y_vec
-
-
-def prepare_test_data_HF(
-    u_data: np.ndarray,
-    y_data: np.ndarray,
-    G_data: np.ndarray,
-    nLocs: int,
-    scale_mode: str,
-    datasetLF: Any,
-    modelLF: Any,
-) -> list:
-    u = copy.deepcopy(u_data)
-    y = copy.deepcopy(y_data)
-    G = copy.deepcopy(G_data)
-
-    f = interpolate.interp1d(y, G, kind="cubic", copy=False, assume_sorted=True)
-    out_loc = np.linspace(y[0], y[-1], nLocs)
-    G_HF = f(out_loc)
-
-    uu = copy.deepcopy(u)
-    u_test = np.tile(uu.reshape(1, 1), (nLocs, 1)).reshape(nLocs, -1)
-    y_test = out_loc.reshape(nLocs, 1)
-    # dataset.update_statistics() why we do not use here
-    ## scale
-    if scale_mode == "normalize":
-        u_test = normalize(u_test, datasetLF.dataU_mean, datasetLF.dataU_std)
-        y_test = normalize(y_test, datasetLF.dataY_mean, datasetLF.dataY_std)
-
-    elif scale_mode == "min-max":
-        u_test = minmaxscale(u_test, datasetLF.dataU_min, datasetLF.dataU_max)
-        y_test = minmaxscale(y_test, datasetLF.dataY_min, datasetLF.dataY_max)
-
-    ## move to torch
-    U = torch.from_numpy(u_test).float().to(torch_utils.device)
-    Y = torch.from_numpy(y_test).float().to(torch_utils.device)
-
-    ## forward pass
-    with torch.no_grad():
-        GG = modelLF((U, Y))
-
-    if scale_mode == "normalize":
-        G_LF = unnormalize(
-            GG.detach().cpu().numpy(), datasetLF.dataG_mean, datasetLF.dataG_std
-        ).flatten()
-
-    elif scale_mode == "min-max":
-        G_LF = unminmaxscale(
-            GG.detach().cpu().numpy(), datasetLF.dataG_min, datasetLF.dataG_max
-        ).flatten()
-
-    u_vec = np.tile(u.reshape(1, 1), (nLocs, 1)).reshape(nLocs, -1)
-    y_vec = out_loc.reshape(nLocs, 1)
-    G_vec = G_HF.reshape(nLocs, 1) - G_LF.reshape(nLocs, 1)
-
-    return u_vec, y_vec, G_vec, G_HF.reshape(nLocs, 1), G_LF.reshape(nLocs, 1)
