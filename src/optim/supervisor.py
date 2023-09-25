@@ -14,8 +14,6 @@ from utils.data_utils import (
     minmaxscale,
     unnormalize,
     unminmaxscale,
-    prepare_test_data,
-    prepare_test_data_HF,
 )
 from utils.math_utils import (
     init_params,
@@ -94,7 +92,6 @@ def execute_train(
     stop_ctr = 0
 
     ## Step 6: training loop
-    model.to(device)
     model = torch.nn.DataParallel(model)
     scalar = GradScaler()
 

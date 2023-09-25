@@ -19,7 +19,7 @@ def init_gpu(use_gpu: bool = True, gpu_id: Any = 0, verbose: bool = True) -> Non
         elif gpu_id == "gpu":
             device = torch.device("cuda")
             if verbose:
-                print("Using all available GPUs.")
+                print("Using all available {} GPUs.".format(torch.cuda.device_count()))
     else:
         device = torch.device("cpu")
         if verbose:
