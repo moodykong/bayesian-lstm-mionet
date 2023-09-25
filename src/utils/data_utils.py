@@ -28,10 +28,10 @@ class dotdict(dict):
 class Dataset_Torch(Dataset):
     def __init__(
         self,
-        input_data: np.ndarray,
-        x_n: np.ndarray,
-        x_next: np.ndarray,
-        t_params: np.ndarray,
+        input_data: torch.Tensor,
+        x_n: torch.Tensor,
+        x_next: torch.Tensor,
+        t_params: torch.Tensor,
     ) -> None:
         self.input_data = input_data
         self.x_n = x_n
@@ -110,16 +110,29 @@ def split_dataset(
     x = np.transpose(database["x"], (2, 0, 1))  # [N_sample, N_time, C]
     t = database["t"].T
 
-    all_indices = list(range(x.shape[0]))  # Number of trajectories
-    train_ind, test_ind = train_test_split(
-        all_indices, test_size=test_size, random_state=rng
-    )
+    if test_size > 0.0 and test_size < 1.0:
+        all_indices = list(range(x.shape[0]))  # Number of trajectories
+        train_ind, test_ind = train_test_split(
+            all_indices, test_size=test_size, random_state=rng
+        )
 
-    # As the data index is on axis=0
-    u_train = u[train_ind, :, :] if u is not None else None
-    u_test = u[test_ind, :, :] if u is not None else None
-    x_train = x[train_ind, :, :]
-    x_test = x[test_ind, :, :]
+        # As the data index is on axis=0
+        u_train = u[train_ind, :, :] if u is not None else None
+        u_test = u[test_ind, :, :] if u is not None else None
+        x_train = x[train_ind, :, :]
+        x_test = x[test_ind, :, :]
+    elif test_size == 0.0:
+        u_train = u
+        u_test = None
+        x_train = x
+        x_test = None
+    elif test_size == 1.0:
+        u_train = None
+        u_test = u
+        x_train = None
+        x_test = x
+    else:
+        raise ValueError("Invalid test size {}".format(test_size))
     t_train = t
     t_test = t
     return (u_train, x_train, t_train), (u_test, x_test, t_test)
@@ -247,10 +260,6 @@ def prepare_local_predict_dataset(
                 input_masked.shape, x_n.shape, x_next.shape
             )
         )
-        memory_size = (
-            input_masked.nbytes + x_n.nbytes + x_next.nbytes + t_params.nbytes
-        ) / (1024**2)
-        print("Data memory size: {} MB".format(int(memory_size)))
 
     return (input_masked, x_n, x_next, t_params)
 
@@ -288,6 +297,14 @@ def scale_and_to_tensor(
     x_n = torch.from_numpy(x_n).float().to(device)
     x_next = torch.from_numpy(x_next).float().to(device)
     t_params = torch.from_numpy(t_params).float().to(device)
+
+    memory_size = (
+        input_data.element_size() * input_data.nelement()
+        + x_n.element_size() * x_n.nelement()
+        + x_next.element_size() * x_next.nelement()
+        + t_params.element_size() * t_params.nelement()
+    ) / (1024**2)
+    print("Data memory size: {} MB".format(int(memory_size)))
 
     return (input_data, x_n, x_next, t_params)
 
