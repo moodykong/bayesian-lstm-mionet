@@ -7,6 +7,105 @@ from typing import Any
 from torch.nn.utils.rnn import pack_padded_sequence
 
 
+# LSTM-MIONet Static
+class LSTM_MIONet_Static(nn.Module):
+    def __init__(self):
+        super(LSTM_MIONet_Static, self).__init__()
+        d_latent = 150
+        d_rnn = 10
+        self.layernorm = nn.LayerNorm([d_latent])
+        self.layernorm_x_n = nn.LayerNorm([d_latent])
+        self.layernorm_delta_t = nn.LayerNorm([d_latent])
+        self.lstm = nn.LSTM(d_latent, d_rnn, 2, batch_first=True, dropout=0.0)
+
+        input_mlp = nn.Sequential(
+            nn.Linear(1, 50),
+            nn.ReLU(),
+            nn.Linear(50, 100),
+            nn.ReLU(),
+            nn.Linear(100, d_latent),
+        )
+
+        cell_mlp = nn.Sequential(
+            nn.Linear(d_rnn, 100),
+            nn.ReLU(),
+            nn.Linear(100, d_latent),
+        )
+
+        hidden_mlp = nn.Sequential(
+            nn.Linear(d_rnn, 100),
+            nn.ReLU(),
+            nn.Linear(100, d_latent),
+        )
+
+        x_n_mlp = nn.Sequential(
+            nn.Linear(1, 50),
+            nn.ReLU(),
+            nn.Linear(50, 100),
+            nn.ReLU(),
+            nn.Linear(100, d_latent),
+        )
+
+        delta_t_mlp = nn.Sequential(
+            nn.Linear(1, 50),
+            nn.ReLU(),
+            nn.Linear(50, 100),
+            nn.ReLU(),
+            nn.Linear(100, d_latent),
+        )
+
+        self.cell_mlp = cell_mlp
+
+        self.input_mlp = input_mlp
+        self.delta_t_mlp = delta_t_mlp
+        self.x_n_mlp = x_n_mlp
+        self.bias = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        input_data, x_n, t_params = x
+        x = input_data
+        x_n = x_n.unsqueeze(1)
+        h = t_params[:, [1]]
+
+        t_s = 0.01
+
+        latent_x = self.input_mlp(x)
+        latent_x_n = self.x_n_mlp(x_n)
+
+        delta_t = h * t_s
+        delta_t = delta_t.unsqueeze(1)
+
+        # normalize
+        latent_x = self.layernorm(latent_x)
+
+        # define the mask for the padded sequence
+        mask = (x != 0.0).type(torch.bool)
+        mask_len = (
+            mask.sum(axis=(-1, -2)).type(torch.int64).cpu()
+            if mask is not None
+            else None
+        )
+        latent_x_packed = (
+            pack_padded_sequence(
+                latent_x, mask_len, batch_first=True, enforce_sorted=False
+            )
+            if mask_len is not None
+            else latent_x
+        )
+
+        output, (h_n, c_n) = self.lstm(latent_x_packed)
+        memory = self.cell_mlp(c_n[-1]).unsqueeze(1)
+
+        latent_delta_t = self.delta_t_mlp(delta_t)
+        latent_delta_t = self.layernorm_delta_t(latent_delta_t)
+        latent_x_n = self.layernorm_x_n(latent_x_n)
+        pred = (memory * latent_x_n * latent_delta_t).sum(dim=-1).view(
+            -1, 1
+        ) + self.bias
+
+        return pred
+
+
 # LSTM-MIONet
 class LSTM_MIONet(nn.Module):
     def __init__(
