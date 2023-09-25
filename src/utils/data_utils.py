@@ -132,13 +132,14 @@ def prepare_local_predict_dataset(
     search_num: int = 5,
     search_random: bool = True,
     offset: int = 0,
+    state_component: int = 0,
     verbose: bool = True,
 ) -> list:
     ## Step 1: collect and copy data
     u_data, x_data, t_data = data
     u = copy.deepcopy(u_data) if u_data is not None else None
     x = copy.deepcopy(x_data)
-    x = x[:, :, [0]]
+    x = x[:, :, [state_component]]
     t = copy.deepcopy(t_data)
     nData = x.shape[0]
 

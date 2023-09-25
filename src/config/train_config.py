@@ -1,9 +1,9 @@
 import numpy as np
 
 ## Training options ##
-DATAFILE_PATH = "data/pendulum_ctr_grf_N_100_T20.npy"
+DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_T20.npy"
 CHECKPOINT_PATH = "models/checkpoints/"
-SAVE_MODEL = False
+SAVE_MODEL = True
 MONITOR_METRIC = "val_loss"  # 'val_loss' or 'train_loss'
 USE_TRAINED_MODEL = False
 TRAINED_MODEL_PATH = ""
@@ -16,8 +16,9 @@ LOSS_FUNCTION = "MSE"
 
 
 ## Data options ##
+STATE_COMPONENT = 0
 SEARCH_LEN = 10
-SEARCH_NUM = 2
+SEARCH_NUM = 20
 SEARCH_RANDOM = True
 OFFSET = 0
 SCALE_MODE = ""
@@ -25,7 +26,7 @@ SCALE_MODE = ""
 ## Hyperparameters ##
 LEARNING_RATE = 1e-3
 BATCH_SIZE = 500
-EPOCHS = 100
+EPOCHS = 2000
 EARLY_STOPPING_EPOCHS = 80
 
 ## Test options ##
@@ -37,6 +38,7 @@ FIGURE_PATH = "figures/"
 def get_config():
     config = {
         "datafile_path": DATAFILE_PATH,
+        "state_component": STATE_COMPONENT,
         "search_len": SEARCH_LEN,
         "search_num": SEARCH_NUM,
         "search_random": SEARCH_RANDOM,
