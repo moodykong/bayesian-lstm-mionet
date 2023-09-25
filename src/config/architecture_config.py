@@ -1,13 +1,13 @@
 ## Architecture configurations ##
-BRANCH_STATE = {"width": 100, "depth": 3, "activation": "relu"}
+BRANCH_STATE = {"width": 50, "depth": 2, "activation": "relu"}
 BRANCH_MEMORY = {
-    "width": 100,
-    "depth": 3,
+    "width": 50,
+    "depth": 2,
     "lstm_size": 10,
     "lstm_layer_num": 2,
     "activation": "relu",
 }
-TRUNK = {"width": 100, "depth": 3, "activation": "relu"}
+TRUNK = {"width": 50, "depth": 2, "activation": "relu"}
 
 
 def get_config():
