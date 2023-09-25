@@ -25,7 +25,7 @@ def run(config):
     ###################################
     # Step 1: initialize the gpu
     ###################################
-    torch_utils.init_gpu(verbose=config["verbose"])
+    torch_utils.init_gpu(use_gpu=True, gpu_id="gpu", verbose=config["verbose"])
 
     ###################################
     # Step 2: set the seed

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 import torch
 from typing import Any
 
@@ -10,13 +8,18 @@ device = None
 
 
 # initializes GPU
-def init_gpu(use_gpu: bool = True, gpu_id: int = 0, verbose: bool = True) -> None:
+def init_gpu(use_gpu: bool = True, gpu_id: Any = 0, verbose: bool = True) -> None:
     """Initializes torch device."""
     global device
     if torch.cuda.is_available() and use_gpu:
-        device = torch.device("cuda:" + str(gpu_id))
-        if verbose:
-            print("Using GPU id {}".format(gpu_id))
+        if isinstance(gpu_id, int):
+            device = torch.device("cuda:" + str(gpu_id))
+            if verbose:
+                print("Using GPU id {}.".format(gpu_id))
+        elif gpu_id == "gpu":
+            device = torch.device("cuda")
+            if verbose:
+                print("Using all available GPUs.")
     else:
         device = torch.device("cpu")
         if verbose:
