@@ -247,6 +247,10 @@ def prepare_local_predict_dataset(
                 input_masked.shape, x_n.shape, x_next.shape
             )
         )
+        memory_size = (
+            input_masked.nbytes + x_n.nbytes + x_next.nbytes + t_params.nbytes
+        ) / (1024**2)
+        print("Data memory size: {} MB".format(int(memory_size)))
 
     return (input_masked, x_n, x_next, t_params)
 
