@@ -92,6 +92,7 @@ def execute_train(
     stop_ctr = 0
 
     ## Step 6: training loop
+    model.to(device)
     model = torch.nn.DataParallel(model)
     scalar = GradScaler()
     mlflow.set_experiment("LSTM_MIONet_Experiment")

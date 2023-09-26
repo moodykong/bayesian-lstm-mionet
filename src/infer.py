@@ -3,6 +3,7 @@
 
 import numpy as np
 import torch
+from models.architectures import LSTM_MIONet
 import mlflow
 from utils import torch_utils
 from optim.supervisor import execute_test
@@ -13,8 +14,8 @@ from utils.data_utils import (
     scale_and_to_tensor,
     split_dataset,
 )
-from config import infer_config
-from utils.args_parser import add_infer_args, args_to_config
+from config import infer_config, architecture_config
+from utils.args_parser import add_infer_args, add_architecture_args, args_to_config
 import argparse, os
 
 # Set current working directory
@@ -30,7 +31,7 @@ def run(config):
     ###################################
     # Step 2: set the seed
     ###################################
-    seed = 9999
+    seed = 999
     np.random.seed(seed=seed)
     torch.manual_seed(seed)
 
@@ -75,13 +76,18 @@ def run(config):
     test_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
 
     ###################################
-    # Step 7: load the model using mlflow
+    # Step 7: load the model
     ###################################
-    model = mlflow.pytorch.load_model(config["trained_model_path"])
+
+    model = mlflow.pytorch.load_model(
+        config["trained_model_path"], map_location=torch_utils.device
+    )
+    if isinstance(model, torch.nn.DataParallel):
+        model = model.module
+    model = model.to(torch_utils.device)
 
     if config["verbose"]:
         print(model)
-
     execute_test(config=config, model=model, dataset=test_data_torch)
 
 
@@ -89,9 +95,11 @@ def main():
     # Load the configurations
     config = dict()
     config.update(infer_config.get_config())
+    config.update(architecture_config.get_config())
     # Add the arguments
     parser = argparse.ArgumentParser()
     parser = add_infer_args(parser)
+    parser = add_architecture_args(parser)
     # Parse the arguments
     args_config = args_to_config(parser)
     # Update the configurations
