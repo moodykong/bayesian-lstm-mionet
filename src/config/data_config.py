@@ -1,7 +1,7 @@
 import numpy as np
 
 ODE_SYSTEM = "pendulum"  # 'pendulum' or 'lorentz'
-T_MAX = 20
+T_MAX = 10
 STEP_SIZE = 0.01
 N_SAMPLE = 10
 X_INIT_PTS = np.array([[-np.pi, np.pi], [-8.0, 8.0]])  # initial states range
