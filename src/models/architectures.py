@@ -80,14 +80,10 @@ class LSTM_MIONet_Static(nn.Module):
 
         # define the mask for the padded sequence
         mask = (x != 0.0).type(torch.bool)
-        mask_len = (
-            mask.sum(axis=(-1, -2)).type(torch.int64).cpu()
-            if mask is not None
-            else None
-        )
+        mask_len = mask.sum(axis=(-1, -2)).type(torch.int64)
         latent_x_packed = (
             pack_padded_sequence(
-                latent_x, mask_len, batch_first=True, enforce_sorted=False
+                latent_x, mask_len.cpu(), batch_first=True, enforce_sorted=False
             )
             if mask_len is not None
             else latent_x
@@ -202,9 +198,11 @@ class LSTM_MLP(nn.Module):
         # Normalize
         y = self.layernorm(y)
         # Define the mask for the padded sequence
-        mask = x.sum(axis=-1) != 0
-        mask_len = mask.sum(axis=-1).type(torch.int64).cpu()
-        y = pack_padded_sequence(y, mask_len, batch_first=True, enforce_sorted=False)
+        mask = (x != 0).type(torch.bool)
+        mask_len = mask.sum(axis=(-1, -2)).type(torch.int64)
+        y = pack_padded_sequence(
+            y, mask_len.cpu(), batch_first=True, enforce_sorted=False
+        )
         _, (h_n, c_n) = self.lstm(y)
         y = self.net_2[0](h_n[-1])
         for k in range(1, len(self.net_2)):
