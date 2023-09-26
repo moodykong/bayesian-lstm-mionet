@@ -173,8 +173,8 @@ def prepare_local_predict_dataset(
     offset = int(offset)
 
     # Truncate the data
-    u = u[:, 0 : offset + t_max, :] if u is not None else None
-    x = x[:, 0 : offset + t_max, :]
+    u = u[:, 0 : offset + t_max, :] + 1e-6 if u is not None else None
+    x = x[:, 0 : offset + t_max, :] + 1e-6
     t = t[0 : offset + t_max]
 
     ## Step 2: interpolate and sample data
@@ -197,29 +197,26 @@ def prepare_local_predict_dataset(
     # Sample the data
     if search_random:
         t_params = np.random.rand(search_num, nData, 3)
-        t_params[:, :, 0] = offset + t_params[:, :, 0] * (
-            t_max - offset - search_len
-        )  # Randomly select the starting index
-        t_params[:, :, 1] = (
-            t_params[:, :, 1] * search_len
-        )  # Randomly select the length of the interval
-        t_params[:, :, 2] = (
-            t_params[:, :, 0] + t_params[:, :, 1]
-        )  # Compute the ending index
+        # Randomly select the starting index
+        t_params[:, :, 0] = (
+            offset + t_params[:, :, 0] * (t_max - offset - search_len)
+        ).astype(int)
+        # Randomly select the length of the interval
+        t_params[:, :, 1] = t_params[:, :, 1] * search_len
+        # Compute the ending index
+        t_params[:, :, 2] = t_params[:, :, 0] + t_params[:, :, 1]
+
     else:
         t_params = np.ones((search_num, nData, 3))
         idx_end = t_max - search_len
+        # Select the starting index
         t_params[:, :, 0] = (
-            (offset + np.linspace(1, idx_end, search_num)).reshape(-1, 1).astype(int)
-        )  # Select the starting index
-        t_params[:, :, 1] = (
-            t_params[:, :, 1] * 0.5 * search_len
-        )  # Select the length of the interval
-        t_params[:, :, 2] = (
-            t_params[:, :, 0] + t_params[:, :, 1]
-        )  # Compute the ending index
-
-    t_params = t_params.astype(int)
+            ((offset + np.linspace(1, idx_end, search_num))).astype(int).reshape(-1, 1)
+        )
+        # Select the length of the interval
+        t_params[:, :, 1] = t_params[:, :, 1] * 0.5 * search_len
+        # Compute the ending index
+        t_params[:, :, 2] = t_params[:, :, 0] + t_params[:, :, 1]
 
     ## Step 3: mask the data
     mask_idxs = np.ones((search_num, nData, t.size))
@@ -247,7 +244,7 @@ def prepare_local_predict_dataset(
     for i in range(t_params.shape[0]):
         idxs_i = data_idxs[i]
         spline_x_i = splines_x[idxs_i]
-        t_n = t_params[i, 0]
+        t_n = int(t_params[i, 0])
         t_next = t_params[i, 2]
 
         for j in range(input_masked.shape[-1]):
