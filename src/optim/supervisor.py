@@ -108,18 +108,18 @@ def execute_train(
 
                 # step b: compute loss
                 loss = loss_fn(y_pred, y_batch)
+                epoch_loss += loss.squeeze()
 
             # step c: compute gradients and backpropagate
             optimizer.zero_grad()
             scalar.scale(loss).backward()
 
             # step d: optimize
-            epoch_loss += loss.detach().cpu().numpy().squeeze()
             scalar.step(optimizer)
             scalar.update()
 
         try:
-            avg_epoch_loss = epoch_loss / len(train_loader)
+            avg_epoch_loss = epoch_loss.item() / len(train_loader)
         except ZeroDivisionError as e:
             print("Error: ", e, "batch size larger than number of training examples")
 
@@ -141,11 +141,10 @@ def execute_train(
 
                         # step b: compute validation loss
                         val_loss = loss_fn(y_val_pred, y_val_batch)
-
-                    epoch_val_loss += val_loss.detach().cpu().numpy().squeeze()
+                        epoch_val_loss += val_loss.squeeze()
 
                 try:
-                    avg_epoch_val_loss = epoch_val_loss / len(val_loader)
+                    avg_epoch_val_loss = epoch_val_loss.item() / len(val_loader)
                 except ZeroDivisionError as e:
                     print(
                         "Error: ",
