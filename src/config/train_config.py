@@ -1,7 +1,7 @@
 import numpy as np
 
 ## Training options ##
-DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_T10.npy"
+DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_T10_2.npy"
 CHECKPOINT_PATH = "models/checkpoints/"
 SAVE_MODEL = True
 MONITOR_METRIC = "val_loss"  # 'val_loss' or 'train_loss'
@@ -9,7 +9,7 @@ USE_TRAINED_MODEL = False
 TRAINED_MODEL_PATH = ""
 VERBOSE = True
 VALIDATE_FREQ = 1
-USE_SCHEDULER = True
+USE_SCHEDULER = False
 SCHEDULER_PATIENCE = 10
 SCHEDULER_FACTOR = 0.5
 LOSS_FUNCTION = "MSE"
@@ -20,13 +20,13 @@ OFFSET = 0
 T_MAX = 10
 STATE_COMPONENT = 0
 SEARCH_LEN = 10
-SEARCH_NUM = 4
+SEARCH_NUM = 20
 SEARCH_RANDOM = True
 SCALE_MODE = ""
 
 ## Hyperparameters ##
 LEARNING_RATE = 1e-3
-BATCH_SIZE = 100
+BATCH_SIZE = 500
 EPOCHS = 1000
 EARLY_STOPPING_EPOCHS = 50
 

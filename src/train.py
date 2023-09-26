@@ -4,7 +4,7 @@
 import numpy as np
 import torch
 from utils import torch_utils
-from models.architectures import LSTM_MIONet_Static
+from models.architectures import LSTM_MIONet, LSTM_MIONet_Static
 from optim.supervisor import execute_train, execute_test
 from utils.data_utils import (
     Dataset_Torch,
@@ -30,7 +30,7 @@ def run(config):
     ###################################
     # Step 2: set the seed
     ###################################
-    seed = 9999
+    seed = 999
     np.random.seed(seed=seed)
     torch.manual_seed(seed)
 
@@ -116,7 +116,7 @@ def run(config):
     trunk["layer_size_list"] = [config["trunk_width"]] * config["trunk_depth"]
     trunk["activation"] = config["trunk_activation"]
 
-    model = LSTM_MIONet_Static()
+    model = LSTM_MIONet(branch_1=branch_state, branch_2=branch_memory, trunk=trunk)
 
     if config["verbose"]:
         print(model)

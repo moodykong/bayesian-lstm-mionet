@@ -17,7 +17,7 @@ def L2_relative_error(y_true: np.ndarray, y_pred: np.ndarray) -> Any:
     return 100 * np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
 
 
-# L2 relative error
+# L1 relative error
 def L1_relative_error(y_true: np.ndarray, y_pred: np.ndarray) -> Any:
     return 100 * np.linalg.norm(y_true - y_pred, ord=1) / np.linalg.norm(y_true, ord=1)
 
