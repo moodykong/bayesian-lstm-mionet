@@ -273,9 +273,9 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
             del y_pred, y_true, t_params, t_next
 
     # Stack the results to assemble trajectories
-    y_pred = np.hstack(y_pred_list).reshape(config["search_num"], -1)
-    y_true = np.hstack(y_true_list).reshape(config["search_num"], -1)
-    t_next = np.hstack(t_next_list).reshape(config["search_num"], -1)
+    y_pred = np.vstack(y_pred_list).reshape(config["search_num"], -1)
+    y_true = np.vstack(y_true_list).reshape(config["search_num"], -1)
+    t_next = np.vstack(t_next_list).reshape(config["search_num"], -1)
     num_trajs = y_pred.shape[1]
 
     del y_pred_list, y_true_list, t_next_list
