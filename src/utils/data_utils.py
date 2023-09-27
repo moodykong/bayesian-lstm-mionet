@@ -222,23 +222,29 @@ def prepare_local_predict_dataset(
         t_params[:, :, 2] = t_params[:, :, 0] + t_params[:, :, 1]
 
     ## Step 3: mask the data
-    mask_idxs = np.ones((search_num, nData, t.size))
+    mask_idxs = np.ones((search_num, nData, t.size))  # [N_search, N_sample, N_time]
     mask_idxs *= np.arange(t.size)
     mask_idxs = mask_idxs > t_params[:, :, [0]]
 
-    input_traj = u if u is not None else x
-    input_masked = np.repeat(np.expand_dims(input_traj, axis=0), search_num, axis=0)
+    input_traj = u if u is not None else x  # [N_sample, N_time, C]
+    input_masked = np.repeat(
+        np.expand_dims(input_traj, axis=0), search_num, axis=0
+    )  # [N_search, N_sample, N_time, C]
     input_masked[mask_idxs] = 0.0
 
     ## Step 4: unfold the data
     # Log the data index
     data_idxs = np.arange(nData, dtype=int)
-    data_idxs = np.repeat(np.expand_dims(data_idxs, axis=0), search_num, axis=0)
+    data_idxs = np.repeat(
+        np.expand_dims(data_idxs, axis=0), search_num, axis=0
+    )  # [N_search, N_sample]
 
     # Unfold the data
-    input_masked = input_masked.reshape(-1, t.size, input_masked.shape[-1])
-    t_params = t_params.reshape(-1, t_params.shape[-1])
-    data_idxs = data_idxs.reshape(-1)
+    input_masked = input_masked.reshape(
+        -1, t.size, input_masked.shape[-1]
+    )  # [N_search * N_sample, N_time, C]
+    t_params = t_params.reshape(-1, t_params.shape[-1])  # [N_search * N_sample, 3]
+    data_idxs = data_idxs.reshape(-1)  # [N_search * N_sample]
 
     ## Step 5: get the current and next state
     x_n = np.zeros((t_params.shape[0], x.shape[-1]))
