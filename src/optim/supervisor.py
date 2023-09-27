@@ -35,6 +35,9 @@ def execute_train(
                 config["epochs"], dataset.len
             )
         )
+    seed = 999
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     ## Step 0: initialize the tensorboard writer
     writer = SummaryWriter()
     ## Step 1: use trained model if required

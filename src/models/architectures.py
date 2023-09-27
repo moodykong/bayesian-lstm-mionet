@@ -5,6 +5,11 @@ import torch
 import torch.nn as nn
 from typing import Any
 from torch.nn.utils.rnn import pack_padded_sequence
+import numpy as np
+
+seed = 999
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 
 # LSTM-MIONet Static
