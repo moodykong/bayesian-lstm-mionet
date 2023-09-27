@@ -7,7 +7,6 @@ PLOT_IDXS = [0]
 TRAINED_MODEL_PATH = "runs:/fb566c054a3c4e83a76cca2f8c81a359/best_model_epoch_248"
 FIGURE_PATH = "figures/"
 VERBOSE = True
-BATCH_SIZE = 100
 
 ## Data options ##
 OFFSET = 0.02
@@ -15,6 +14,7 @@ T_MAX = 10
 STATE_COMPONENT = 0
 SEARCH_LEN = 10
 SEARCH_NUM = 200
+BATCH_SIZE = 100
 SEARCH_RANDOM = False
 SCALE_MODE = ""
 
