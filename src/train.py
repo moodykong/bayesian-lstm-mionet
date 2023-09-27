@@ -116,7 +116,7 @@ def run(config):
     trunk["layer_size_list"] = [config["trunk_width"]] * config["trunk_depth"]
     trunk["activation"] = config["trunk_activation"]
 
-    model = LSTM_MIONet_Static()
+    model = LSTM_MIONet(branch_state, branch_memory, trunk, use_bias=True)
 
     if config["verbose"]:
         print(model)
