@@ -108,7 +108,7 @@ def split_dataset(
 ) -> Any:
     u = np.transpose(database["u"], (2, 0, 1)) if "u" in database else None
     x = np.transpose(database["x"], (2, 0, 1))  # [N_sample, N_time, C]
-    t = database["t"].T
+    t = database["t"].T  # [N_time,]
 
     if test_size > 0.0 and test_size < 1.0:
         all_indices = list(range(x.shape[0]))  # Number of trajectories
@@ -160,6 +160,7 @@ def prepare_local_predict_dataset(
     t_s = t[1] - t[0]
     t_max = t_max / t_s
     offset = offset / t_s
+
     if offset + search_len > t.size:
         raise ValueError(
             "The offset {} + search length {} is larger than the total time length {}.".format(
@@ -168,14 +169,13 @@ def prepare_local_predict_dataset(
         )
 
     # Determine the maximum time index
-    t_max = t_max if (t_max + offset) < t.size else (t.size - offset)
     t_max = int(t_max)
     offset = int(offset)
 
     # Truncate the data
-    u = u[:, 0 : offset + t_max, :] + 1e-6 if u is not None else None
-    x = x[:, 0 : offset + t_max, :] + 1e-6
-    t = t[0 : offset + t_max]
+    u = u[:, 0:t_max, :] if u is not None else None
+    x = x[:, 0:t_max, :]
+    t = t[0:t_max]
 
     ## Step 2: interpolate and sample data
 
@@ -208,7 +208,7 @@ def prepare_local_predict_dataset(
 
     else:
         t_params = np.ones((search_num, nData, 3))
-        idx_end = t_max - search_len
+        idx_end = t_max - offset - search_len
         # Select the starting index
         t_params[:, :, 0] = (
             ((offset + np.linspace(1, idx_end, search_num))).astype(int).reshape(-1, 1)
@@ -258,7 +258,7 @@ def prepare_local_predict_dataset(
             )
         )
 
-    return (input_masked, x_n, x_next, t_params)
+    return (input_masked, x_n, x_next, t_params * t_s)
 
 
 # scale and move dataset to torch
