@@ -1,7 +1,7 @@
 import numpy as np
 
 ## Training options ##
-DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_h001_T10.npy"
+DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_h001_T10_2.npy"
 CHECKPOINT_PATH = "models/checkpoints/"
 SAVE_MODEL = True
 MONITOR_METRIC = "val_loss"  # 'val_loss' or 'train_loss'
@@ -16,17 +16,17 @@ LOSS_FUNCTION = "MSE"
 
 
 ## Data options ##
-OFFSET = 0.02
+OFFSET = 0.0
 T_MAX = 10
 STATE_COMPONENT = 0
-SEARCH_LEN = 2
-SEARCH_NUM = 20
+SEARCH_LEN = 10
+SEARCH_NUM = 2
 SEARCH_RANDOM = True
 SCALE_MODE = ""
 
 ## Hyperparameters ##
 LEARNING_RATE = 1e-3
-BATCH_SIZE = 125
+BATCH_SIZE = 500
 EPOCHS = 1000
 EARLY_STOPPING_EPOCHS = 80
 
