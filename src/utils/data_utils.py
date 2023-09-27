@@ -172,13 +172,13 @@ def prepare_local_predict_dataset(
         )
 
     # Determine the maximum time index
-    # t_max = int(t_max)
+    t_max = int(t_max)
     offset = int(offset)
 
     # Truncate the data
-    # u = u[:, 0:t_max, :] if u is not None else None
-    # x = x[:, 0:t_max, :]
-    # t = t[0:t_max]
+    u = u[:, 0:t_max, :] if u is not None else None
+    x = x[:, 0:t_max, :]
+    t = t[0:t_max]
 
     ## Step 2: interpolate and sample data
 
@@ -202,7 +202,7 @@ def prepare_local_predict_dataset(
         t_params = np.random.rand(search_num, nData, 3)
         # Randomly select the starting index
         t_params[:, :, 0] = (
-            offset + t_params[:, :, 0] * (t.size - offset - search_len)
+            offset + t_params[:, :, 0] * (t.size - offset - search_len * 2)
         ).astype(int)
         # Randomly select the length of the interval
         t_params[:, :, 1] = t_params[:, :, 1] * search_len
@@ -211,7 +211,7 @@ def prepare_local_predict_dataset(
 
     else:
         t_params = np.ones((search_num, nData, 3))
-        idx_end = t.size - offset - search_len
+        idx_end = t.size - offset - search_len * 2
         # Select the starting index
         t_params[:, :, 0] = (
             ((offset + np.linspace(1, idx_end, search_num))).astype(int).reshape(-1, 1)
