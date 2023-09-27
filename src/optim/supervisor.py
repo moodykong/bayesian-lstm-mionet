@@ -23,7 +23,7 @@ from utils.math_utils import (
 )
 
 import numpy as np
-import mlflow, mlflow.pytorch
+import mlflow
 
 
 def execute_train(
@@ -79,7 +79,7 @@ def execute_train(
     train_loader = DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
-    val_loader = DataLoader(val_dataset, batch_size=num_val, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=True)
 
     ## Step 5: initialize best values and logger
     best_metric = {}
@@ -98,56 +98,44 @@ def execute_train(
     model.to(device)
     model = torch.nn.DataParallel(model)
     scalar = GradScaler()
-    mlflow.set_experiment("LSTM_MIONet_Experiment")
 
-    for epoch in progress_bar:
-        model.train()
-        epoch_loss = 0
-        for x_batch, y_batch in train_loader:
-            ## batch training
-            with autocast():
-                # step a: forward pass
-                y_pred = model(x_batch)
+    try:
+        if mlflow.active_run():
+            mlflow.end_run()
+        mlflow.set_experiment("LSTM_MIONet_Experiment")
 
-                # step b: compute loss
-                loss = loss_fn(y_pred, y_batch)
-                epoch_loss += loss.squeeze()
+        with mlflow.start_run():
+            mlflow.log_artifacts("config", artifact_path="src/config")
+            mlflow.log_artifact("models/architectures.py", artifact_path="src/models")
+            mlflow.log_artifact("optim/supervisor.py", artifact_path="src/optim")
+            mlflow.log_artifacts("utils", artifact_path="src/utils")
+            mlflow.log_artifact("database_generator.py", artifact_path="src")
+            mlflow.log_artifact("train.py", artifact_path="src")
+            mlflow.log_artifact("infer.py", artifact_path="src")
 
-            # step c: compute gradients and backpropagate
-            optimizer.zero_grad()
-            scalar.scale(loss).backward()
-
-            # step d: optimize
-            scalar.step(optimizer)
-            scalar.update()
-
-        try:
-            avg_epoch_loss = epoch_loss.item() / len(train_loader)
-        except ZeroDivisionError as e:
-            print("Error: ", e, "batch size larger than number of training examples")
-
-        log_metric["train_loss"].append([epoch, avg_epoch_loss])
-
-        writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
-        mlflow.log_metric("train_loss", avg_epoch_loss, epoch)
-
-        ## validate and print
-        if epoch % config["validate_freq"] == 0 or (epoch + 1) == config["epochs"]:
-            model.eval()
-            with torch.no_grad():
-                epoch_val_loss = 0
-                for x_val_batch, y_val_batch in val_loader:
-                    ## batch validation
+            for epoch in progress_bar:
+                model.train()
+                epoch_loss = 0
+                for x_batch, y_batch in train_loader:
+                    ## batch training
                     with autocast():
-                        # step a: forward pass without computing gradients
-                        y_val_pred = model(x_val_batch)
+                        # step a: forward pass
+                        y_pred = model(x_batch)
 
-                        # step b: compute validation loss
-                        val_loss = loss_fn(y_val_pred, y_val_batch)
-                        epoch_val_loss += val_loss.squeeze()
+                        # step b: compute loss
+                        loss = loss_fn(y_pred, y_batch)
+                        epoch_loss += loss.squeeze()
+
+                    # step c: compute gradients and backpropagate
+                    optimizer.zero_grad()
+                    scalar.scale(loss).backward()
+
+                    # step d: optimize
+                    scalar.step(optimizer)
+                    scalar.update()
 
                 try:
-                    avg_epoch_val_loss = epoch_val_loss.item() / len(val_loader)
+                    avg_epoch_loss = epoch_loss.item() / len(train_loader)
                 except ZeroDivisionError as e:
                     print(
                         "Error: ",
@@ -155,56 +143,97 @@ def execute_train(
                         "batch size larger than number of training examples",
                     )
 
-                log_metric["val_loss"].append([epoch, avg_epoch_val_loss])
-                writer.add_scalar("Loss/val", avg_epoch_val_loss, epoch)
-                mlflow.log_metric("val_loss", avg_epoch_val_loss, epoch)
+                log_metric["train_loss"].append([epoch, avg_epoch_loss])
 
-            ## save best results
-            stop_ctr += 1
-            if avg_epoch_loss < best_metric["train_loss"]:
-                best_metric["train_loss"] = avg_epoch_loss
-                if monitor == "train_loss":
-                    checkpoint_path = (
-                        config["checkpoint_path"] + f"best_train_loss_{epoch}.pt"
+                writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
+                mlflow.log_metric("train_loss", avg_epoch_loss, epoch)
+
+                ## validate and print
+                if (
+                    epoch % config["validate_freq"] == 0
+                    or (epoch + 1) == config["epochs"]
+                ):
+                    model.eval()
+                    with torch.no_grad():
+                        epoch_val_loss = 0
+                        for x_val_batch, y_val_batch in val_loader:
+                            ## batch validation
+                            with autocast():
+                                # step a: forward pass without computing gradients
+                                y_val_pred = model(x_val_batch)
+
+                                # step b: compute validation loss
+                                val_loss = loss_fn(y_val_pred, y_val_batch)
+                                epoch_val_loss += val_loss.squeeze()
+
+                        try:
+                            avg_epoch_val_loss = epoch_val_loss.item() / len(val_loader)
+                        except ZeroDivisionError as e:
+                            print(
+                                "Error: ",
+                                e,
+                                "batch size larger than number of training examples",
+                            )
+
+                        log_metric["val_loss"].append([epoch, avg_epoch_val_loss])
+                        writer.add_scalar("Loss/val", avg_epoch_val_loss, epoch)
+                        mlflow.log_metric("val_loss", avg_epoch_val_loss, epoch)
+
+                    ## save best results
+                    stop_ctr += 1
+                    if avg_epoch_loss < best_metric["train_loss"]:
+                        best_metric["train_loss"] = avg_epoch_loss
+                        if monitor == "train_loss":
+                            checkpoint_path = (
+                                config["checkpoint_path"]
+                                + f"best_train_loss_{epoch}.pt"
+                            )
+
+                            stop_ctr = 0
+
+                            if config["save_model"]:
+                                # torch_utils.save(model, optimizer, save_path=checkpoint_path)
+                                mlflow.pytorch.log_model(
+                                    model, f"best_model_epoch_{epoch}"
+                                )
+
+                    if avg_epoch_val_loss < best_metric["val_loss"]:
+                        best_metric["val_loss"] = avg_epoch_val_loss
+                        if monitor == "val_loss":
+                            checkpoint_path = (
+                                config["checkpoint_path"] + f"best_val_loss_{epoch}.pt"
+                            )
+
+                            stop_ctr = 0
+
+                            if config["save_model"]:
+                                # torch_utils.save(model, optimizer, save_path=checkpoint_path)
+                                mlflow.pytorch.log_model(
+                                    model, f"best_model_epoch_{epoch}"
+                                )
+
+                    ## run scheduler
+                    if config["use_scheduler"]:
+                        scheduler.step(avg_epoch_val_loss)
+
+                    ## print results
+                    progress_bar.set_postfix(
+                        {
+                            "Train": avg_epoch_loss,
+                            "Val": avg_epoch_val_loss,
+                            "Best_train": best_metric["train_loss"],
+                            "Best_Val": best_metric["val_loss"],
+                        }
                     )
 
-                    stop_ctr = 0
+                    ## early stopping
+                    if stop_ctr > config["early_stopping_epochs"]:
+                        print("Early Stopping.")
+                        break
 
-                    if config["save_model"]:
-                        # torch_utils.save(model, optimizer, save_path=checkpoint_path)
-                        mlflow.pytorch.log_model(model, f"best_model_epoch_{epoch}")
-
-            if avg_epoch_val_loss < best_metric["val_loss"]:
-                best_metric["val_loss"] = avg_epoch_val_loss
-                if monitor == "val_loss":
-                    checkpoint_path = (
-                        config["checkpoint_path"] + f"best_val_loss_{epoch}.pt"
-                    )
-
-                    stop_ctr = 0
-
-                    if config["save_model"]:
-                        # torch_utils.save(model, optimizer, save_path=checkpoint_path)
-                        mlflow.pytorch.log_model(model, f"best_model_epoch_{epoch}")
-
-            ## run scheduler
-            if config["use_scheduler"]:
-                scheduler.step(avg_epoch_val_loss)
-
-            ## print results
-            progress_bar.set_postfix(
-                {
-                    "Train": avg_epoch_loss,
-                    "Val": avg_epoch_val_loss,
-                    "Best_train": best_metric["train_loss"],
-                    "Best_Val": best_metric["val_loss"],
-                }
-            )
-
-            ## early stopping
-            if stop_ctr > config["early_stopping_epochs"]:
-                print("Early Stopping.")
-                break
+    except KeyboardInterrupt:
+        print("Keyboard Interrupted.")
+        mlflow.end_run()
 
     progress_bar.close()
     del optimizer, train_loader, val_loader
@@ -216,7 +245,7 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
         print("\n***** Testing with {} data samples*****\n".format(dataset.len))
 
     ## Step 1: load the data
-    test_loader = DataLoader(dataset, batch_size=dataset.len, shuffle=False)
+    test_loader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=False)
 
     ## Step 2: infer at each time step
     # Error metrics
