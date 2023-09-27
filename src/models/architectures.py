@@ -67,12 +67,10 @@ class LSTM_MIONet_Static(nn.Module):
         x_n = x_n.unsqueeze(1)
         h = t_params[:, [1]]
 
-        t_s = 0.01
-
         latent_x = self.input_mlp(x)
         latent_x_n = self.x_n_mlp(x_n)
 
-        delta_t = h * t_s
+        delta_t = h
         delta_t = delta_t.unsqueeze(1)
 
         # normalize
@@ -152,6 +150,7 @@ class MLP(nn.Module):
         for k in range(len(layer_size) - 2):
             self.net.append(nn.Linear(layer_size[k], layer_size[k + 1], bias=True))
             self.net.append(get_activation(activation))
+            self.net.append(nn.LayerNorm([layer_size[k + 1]]))
         self.net.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
         self.net.apply(self._init_weights)
 
@@ -178,6 +177,7 @@ class LSTM_MLP(nn.Module):
         for k in range(0, len(layer_size) - 2):
             self.net_1.append(nn.Linear(layer_size[k], layer_size[k + 1], bias=True))
             self.net_1.append(get_activation(activation))
+            self.net_1.append(nn.LayerNorm([layer_size[k + 1]]))
         self.net_1.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
 
         self.lstm = nn.LSTM(
@@ -189,14 +189,11 @@ class LSTM_MLP(nn.Module):
             self.net_2.append(nn.Linear(layer_size[k], layer_size[k + 1], bias=True))
             self.net_2.append(get_activation(activation))
         self.net_2.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
-        self.layernorm = nn.LayerNorm([layer_size[-1]])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
         for k in range(len(self.net_1)):
             y = self.net_1[k](y)
-        # Normalize
-        y = self.layernorm(y)
         # Define the mask for the padded sequence
         mask = (x != 0).type(torch.bool)
         mask_len = mask.sum(axis=(-1, -2)).type(torch.int64)
