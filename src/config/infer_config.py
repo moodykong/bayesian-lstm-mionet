@@ -1,10 +1,10 @@
 import numpy as np
 
 ## Infer options ##
-DATAFILE_PATH = "data/pendulum_ctr_grf_N_100_h001_T10_2.npy"
+DATAFILE_PATH = "data/pendulum_ctr_grf_N_100_h001_T10.npy"
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
-TRAINED_MODEL_PATH = "runs:/fb566c054a3c4e83a76cca2f8c81a359/best_model_epoch_248"
+TRAINED_MODEL_PATH = "runs:/868411c1066b445cbfd244ad13102813/best_model_epoch_347"
 FIGURE_PATH = "figures/"
 VERBOSE = True
 

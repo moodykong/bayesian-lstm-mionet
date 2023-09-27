@@ -17,8 +17,6 @@ from utils.data_utils import (
 )
 from utils.math_utils import (
     init_params,
-    L2_relative_error,
-    L1_relative_error,
     plot_comparison,
 )
 
@@ -246,9 +244,7 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
     test_loader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=False)
 
     ## Step 2: infer at each time step
-    # Error metrics
-    L1_error_list = []
-    L2_error_list = []
+
     t_next_list = []
     y_pred_list = []
     y_true_list = []
@@ -273,26 +269,30 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
             del y_pred, y_true, t_params, t_next
 
     # Stack the results to assemble trajectories
-    y_pred = np.vstack(y_pred_list).reshape(config["search_num"], -1)
-    y_true = np.vstack(y_true_list).reshape(config["search_num"], -1)
-    t_next = np.vstack(t_next_list).reshape(config["search_num"], -1)
-    num_trajs = y_pred.shape[1]
+    y_pred = np.vstack(y_pred_list).reshape(-1, config["search_num"])
+    y_true = np.vstack(y_true_list).reshape(-1, config["search_num"])
+    t_next = np.vstack(t_next_list).reshape(-1, config["search_num"])
+    num_trajs = y_pred.shape[0]
 
     del y_pred_list, y_true_list, t_next_list
 
     assert y_pred.shape == y_true.shape == t_next.shape  # check the shape of the output
 
     # Compute validation loss and plot
-    for idx in range(num_trajs):
-        # Compute validation loss
-        L1_error_list.append(L1_relative_error(y_true[:, idx], y_pred[:, idx]))
-        L2_error_list.append(L2_relative_error(y_true[:, idx], y_pred[:, idx]))
+    L2_error_mat = np.linalg.norm(y_true - y_pred, axis=1) / np.linalg.norm(
+        y_true, axis=1
+    )
+    L1_error_mat = np.linalg.norm(y_true - y_pred, ord=1, axis=1) / np.linalg.norm(
+        y_true, ord=1, axis=1
+    )
 
+    for idx in range(num_trajs):
+        # Plot the trajectories
         if (idx in config["plot_idxs"]) and config["plot_trajs"]:
             fig_filename = config["figure_path"] + "infer_trajs.png"
             plot_comparison(
-                (t_next[:, idx].flatten(), t_next[:, idx].flatten()),
-                (y_true[:, idx].flatten(), y_pred[:, idx].flatten()),
+                (t_next[idx].flatten(), t_next[idx].flatten()),
+                (y_true[idx].flatten(), y_pred[idx].flatten()),
                 ("True", "Pred"),
                 color_list=("red", "blue"),
                 linestyle_list=("solid", "dashed"),
@@ -300,14 +300,12 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
                 save_fig=True,
             )
 
-    # printing Errors
-    l1_error = np.stack(L1_error_list)
-    l1_mean = np.mean(l1_error)
-    l1_std = np.std(l1_error)
+    # Print errors
+    L1_mean = np.mean(L1_error_mat)
+    L1_std = np.std(L1_error_mat)
 
-    l2_error = np.stack(L2_error_list)
-    l2_mean = np.mean(l2_error)
-    l2_std = np.std(l2_error)
+    L2_mean = np.mean(L2_error_mat)
+    L2_std = np.std(L2_error_mat)
 
     if config["verbose"]:
         print("\n=============================")
@@ -315,7 +313,7 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
         print("=============================")
         print("     mean     st. dev.  ")
         print("-----------------------------")
-        print(" %9.4f %9.4f" % (l1_mean, l1_std))
+        print(" %9.4f %9.4f" % (L1_mean * 100, L1_std * 100))
         print("-----------------------------")
 
         print("\n=============================")
@@ -323,24 +321,19 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
         print("=============================")
         print("     mean     st. dev.  ")
         print("-----------------------------")
-        print(" %9.4f %9.4f" % (l2_mean, l2_std))
+        print(" %9.4f %9.4f" % (L2_mean * 100, L2_std * 100))
         print("-----------------------------")
 
         print("\n=============================")
         print("[L1-relative Error list, L2-relative Error list ] %     ")
         print("=============================")
         print(
-            np.hstack(
-                (
-                    l1_error.reshape(len(L1_error_list), 1),
-                    l2_error.reshape(len(L2_error_list), 1),
-                )
-            )
+            np.hstack((L1_error_mat.reshape(-1, 1), L2_error_mat.reshape(-1, 1))) * 100
         )
 
     log_metric = {}
-    log_metric["L1_error_list"] = L1_error_list
-    log_metric["L2_error_list"] = L2_error_list
+    log_metric["L1_error_mat"] = L1_error_mat
+    log_metric["L2_error_mat"] = L2_error_mat
     log_metric["t_next"] = t_next
     log_metric["y_pred"] = y_pred
     log_metric["y_true"] = y_true
