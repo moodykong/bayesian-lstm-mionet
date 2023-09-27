@@ -7,10 +7,6 @@ from typing import Any
 from torch.nn.utils.rnn import pack_padded_sequence
 import numpy as np
 
-seed = 999
-np.random.seed(seed)
-torch.manual_seed(seed)
-
 
 # LSTM-MIONet Static
 class LSTM_MIONet_Static(nn.Module):
@@ -155,7 +151,7 @@ class MLP(nn.Module):
         for k in range(len(layer_size) - 2):
             self.net.append(nn.Linear(layer_size[k], layer_size[k + 1], bias=True))
             self.net.append(get_activation(activation))
-            self.net.append(nn.LayerNorm([layer_size[k + 1]]))
+        self.net.append(nn.LayerNorm([layer_size[-2]]))
         self.net.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
         self.net.apply(self._init_weights)
 
@@ -182,7 +178,7 @@ class LSTM_MLP(nn.Module):
         for k in range(0, len(layer_size) - 2):
             self.net_1.append(nn.Linear(layer_size[k], layer_size[k + 1], bias=True))
             self.net_1.append(get_activation(activation))
-            self.net_1.append(nn.LayerNorm([layer_size[k + 1]]))
+        self.net_1.append(nn.LayerNorm([layer_size[-2]]))
         self.net_1.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
 
         self.lstm = nn.LSTM(
