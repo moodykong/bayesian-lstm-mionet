@@ -4,7 +4,7 @@ import numpy as np
 DATAFILE_PATH = "data/pendulum_ctr_grf_N_100_h001_T10.npy"
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
-TRAINED_MODEL_PATH = "runs:/868411c1066b445cbfd244ad13102813/best_model_epoch_347"
+TRAINED_MODEL_PATH = "runs:/868411c1066b445cbfd244ad13102813/best_model_epoch_488"
 FIGURE_PATH = "figures/"
 VERBOSE = True
 
@@ -12,7 +12,7 @@ VERBOSE = True
 OFFSET = 0.02
 T_MAX = 10
 STATE_COMPONENT = 0
-SEARCH_LEN = 10
+SEARCH_LEN = 2
 SEARCH_NUM = 200
 BATCH_SIZE = 100
 SEARCH_RANDOM = False
