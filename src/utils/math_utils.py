@@ -50,7 +50,7 @@ def plot_comparison(
             y_i.reshape(
                 -1,
             ),
-            lw=2.0,
+            lw=1.0,
             color=c_i,
             linestyle=ls_i,
             label=legend_i,
@@ -64,7 +64,7 @@ def plot_comparison(
     axe.legend()
 
     if save_fig and fig_path is not None:
-        plt.savefig(fig_path, bbox_inches="tight")
+        plt.savefig(fig_path, bbox_inches="tight", dpi=300)
     else:
         plt.show()
 
