@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from config import train_config, infer_config, architecture_config, data_config
+import mlflow
 
 
 def add_train_args(parser: ArgumentParser):
@@ -172,12 +173,7 @@ def add_infer_args(parser: ArgumentParser):
         default=config["scale_mode"],
         help="Whether to scale the data. If None, no scaling is applied. If 'standard', the data is scaled to have zero mean and unit variance. If 'minmax', the data is scaled to be in the range of [0, 1].",
     )
-    parser.add_argument(
-        "--loss_function",
-        type=str,
-        default=config["loss_function"],
-        help="Loss function to use.",
-    )
+
     parser.add_argument(
         "--plot_trajs",
         type=bool,
@@ -327,6 +323,7 @@ def add_data_args(parser: ArgumentParser):
 
 def args_to_config(parser: ArgumentParser):
     args = parser.parse_args()
+    mlflow.log_params(vars(args))
     config = dict()
     for arg in vars(args):
         config[arg] = getattr(args, arg, None)
