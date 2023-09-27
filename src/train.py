@@ -48,7 +48,7 @@ def run(config):
     ###################################
 
     train_data, test_data = split_dataset(
-        train_dataset, test_size=0.1, verbose=config["verbose"]
+        train_dataset, test_size=0.0, verbose=config["verbose"]
     )
     input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
         data=train_data,
@@ -63,23 +63,23 @@ def run(config):
     train_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
     state_feature_num = x_n.shape[-1]
 
-    input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
-        data=test_data,
-        state_component=config["state_component"],
-        offset=config["offset"],
-        t_max=config["t_max"],
-        search_len=config["search_len"],
-        search_num=config["search_num"],
-        search_random=config["search_random"],
-        verbose=config["verbose"],
-    )
-    test_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
+    # input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
+    #    data=test_data,
+    #    state_component=config["state_component"],
+    #    offset=config["offset"],
+    #    t_max=config["t_max"],
+    #    search_len=config["search_len"],
+    #    search_num=config["search_num"],
+    #    search_random=config["search_random"],
+    #    verbose=config["verbose"],
+    # )
+    # test_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
 
     ###################################
     # Step 5: update dataset statistics
     ###################################
     train_data_stat.update_statistics()
-    test_data_stat.update_statistics()
+    # test_data_stat.update_statistics()
 
     ###################################
     # Step 6: scale and move numpy data to tensor
@@ -89,10 +89,10 @@ def run(config):
     )
     train_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
 
-    input_masked, x_n, x_next, t_params = scale_and_to_tensor(
-        test_data_stat, scale_mode=config["scale_mode"], device=torch_utils.device
-    )
-    test_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
+    # input_masked, x_n, x_next, t_params = scale_and_to_tensor(
+    #    test_data_stat, scale_mode=config["scale_mode"], device=torch_utils.device
+    # )
+    # test_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
 
     ###################################
     # Step 7: define the model
@@ -116,7 +116,7 @@ def run(config):
     trunk["layer_size_list"] = [config["trunk_width"]] * config["trunk_depth"]
     trunk["activation"] = config["trunk_activation"]
 
-    model = LSTM_MIONet(branch_1=branch_state, branch_2=branch_memory, trunk=trunk)
+    model = LSTM_MIONet_Static()
 
     if config["verbose"]:
         print(model)
@@ -133,7 +133,7 @@ def run(config):
     # Step 9: test the model
     ###################################
 
-    execute_test(config=config, model=model, dataset=test_data_torch)
+    # execute_test(config=config, model=model, dataset=test_data_torch)
 
 
 def main():
