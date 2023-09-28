@@ -1,7 +1,7 @@
 import numpy as np
 
 ## Training options ##
-DATAFILE_PATH = "data/pendulum_ctr_grf_N_5000_h001_T10.npy"
+DATAFILE_PATH = "data/lorentz_N_5000_h001_T20.npy"
 CHECKPOINT_PATH = "models/checkpoints/"
 SAVE_MODEL = True
 MONITOR_METRIC = "val_loss"  # 'val_loss' or 'train_loss'
@@ -17,7 +17,7 @@ LOSS_FUNCTION = "MSE"
 
 ## Data options ##
 OFFSET = 0.02
-T_MAX = 10
+T_MAX = 20
 STATE_COMPONENT = 0
 SEARCH_LEN = 2
 SEARCH_NUM = 10
