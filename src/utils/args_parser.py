@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 from config import train_config, infer_config, architecture_config, data_config
-import mlflow
 
 
 def add_train_args(parser: ArgumentParser):
@@ -301,9 +300,10 @@ def add_data_args(parser: ArgumentParser):
     )
     parser.add_argument(
         "--x_init_pts",
-        type=list,
+        type=float,
         default=config["x_init_pts"],
-        help="The range of initial points of the trajectories.",
+        nargs="*",
+        help="The range of initial points of the trajectories. Two floats define the range of each state component.",
     )
     parser.add_argument(
         "--ctr_func",
@@ -323,8 +323,8 @@ def add_data_args(parser: ArgumentParser):
 
 def args_to_config(parser: ArgumentParser):
     args = parser.parse_args()
-    mlflow.log_params(vars(args))
     config = dict()
+    config["args"] = vars(args)
     for arg in vars(args):
         config[arg] = getattr(args, arg, None)
     return config

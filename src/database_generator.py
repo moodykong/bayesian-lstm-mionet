@@ -22,6 +22,7 @@ def run(config):
     N_sample = config["n_sample"]
     # Define the initial states
     x_init_pts = config["x_init_pts"]
+    x_init_pts = np.array(x_init_pts).reshape(-1, 2)
     x_num = x_init_pts.shape[0]
     x_init = np.random.uniform(x_init_pts[:, 0], x_init_pts[:, 1], (N_sample, x_num))
 
