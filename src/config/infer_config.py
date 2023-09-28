@@ -1,20 +1,30 @@
 import numpy as np
 
 ## Infer options ##
-DATAFILE_PATH = "data/lorentz_N_100_h001_T20.npy"
+DATAFILE_PATH = "data/pendulum_ctr_grf_N_100_h001_T10.npy"
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
-# TRAINED_MODEL_PATH = "runs:/031d4006d072418d9fefed87c9d64b23/best_model_epoch_299"
-# TRAINED_MODEL_PATH = "runs:/76b3f35e9d3b4ad1b93076ee6df6dc9a/best_model_epoch_170"
-TRAINED_MODEL_PATH = "runs:/09ea52ba93d54fc4b4efb715709e1ff7/best_model_epoch_24"
+# TRAINED_MODEL_PATH = (
+#    "runs:/031d4006d072418d9fefed87c9d64b23/best_model_epoch_299"  # pendulum h=0.01
+# )
+# TRAINED_MODEL_PATH = (
+#    "runs:/76b3f35e9d3b4ad1b93076ee6df6dc9a/best_model_epoch_170"  # pendulum h=0.1
+# )
+# TRAINED_MODEL_PATH = (
+#    "runs:/09ea52ba93d54fc4b4efb715709e1ff7/best_model_epoch_381"  # lorentz h=0.01
+# )
+TRAINED_MODEL_PATH = (
+    "runs:/5e1fec5193a3437bb041dea1aa00fb80/best_model_epoch_280"  # pendulum h=0.2
+)
+
 FIGURE_PATH = "figures/"
 VERBOSE = True
 
 ## Data options ##
-OFFSET = 0.02
-T_MAX = 20
+OFFSET = 0
+T_MAX = 10
 STATE_COMPONENT = 0
-SEARCH_LEN = 2
+SEARCH_LEN = 20
 SEARCH_NUM = 200
 BATCH_SIZE = 100
 SEARCH_RANDOM = False
