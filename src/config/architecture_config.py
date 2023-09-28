@@ -3,7 +3,7 @@ BRANCH_STATE = {"width": 200, "depth": 3, "activation": "relu"}
 BRANCH_MEMORY = {
     "width": 200,
     "depth": 3,
-    "lstm_size": 10,
+    "lstm_size": 100,
     "lstm_layer_num": 2,
     "activation": "relu",
 }
