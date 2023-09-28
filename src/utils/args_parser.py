@@ -277,7 +277,7 @@ def add_data_args(parser: ArgumentParser):
         "--ode_system",
         type=str,
         default=config["ode_system"],
-        choices=["pendulum", "lorentz"],
+        choices=["pendulum", "lorentz", "Ausgrid"],
         help="ODE system to use.",
     )
     parser.add_argument(
@@ -311,6 +311,39 @@ def add_data_args(parser: ArgumentParser):
         default=config["ctr_func"],
         choices=["designate", "gaussian"],
         help="Control function to use.",
+    )
+    parser.add_argument(
+        "--Ausgrid_customer_id",
+        type=int,
+        default=config["Ausgrid_customer_id"],
+        nargs="*",
+        help="Customer ID of the Ausgrid dataset.",
+    )
+    parser.add_argument(
+        "--Ausgrid_start_date",
+        type=str,
+        default=config["Ausgrid_start_date"],
+        help="Start date of the Ausgrid dataset, e.g., 2010-7-1.",
+    )
+    parser.add_argument(
+        "--Ausgrid_end_date",
+        type=str,
+        nargs=3,
+        default=config["Ausgrid_end_date"],
+        help="End date of the Ausgrid dataset, e.g., 2011-6-30.",
+    )
+    parser.add_argument(
+        "--Ausgrid_category",
+        type=str,
+        default=config["Ausgrid_category"],
+        choices=["GG", "CG"],
+        help="Category of the Ausgrid dataset.",
+    )
+    parser.add_argument(
+        "--Ausgrid_delta_t_idxs",
+        type=float,
+        default=config["Ausgrid_delta_t_idxs"],
+        help="Time interval of the Ausgrid dataset.",
     )
     parser.add_argument(
         "--datafile_path",
