@@ -21,21 +21,19 @@ def run(config):
                 config["Ausgrid_end_date"], "%Y-%m-%d"
             )
         data = select_Ausgrid_data(
-            config["Ausgrid_customer_id"],
-            config["Ausgrid_start_date"],
-            config["Ausgrid_end_date"],
-            config["Ausgrid_category"],
-            config["Ausgrid_delta_t_idxs"],
-            config["verbose"],
+            cust_id=config["Ausgrid_customer_id"],
+            start_date=config["Ausgrid_start_date"],
+            end_date=config["Ausgrid_end_date"],
+            category=config["Ausgrid_category"],
+            delta_t_idxs=config["Ausgrid_delta_t_idxs"],
+            verbose=config["verbose"],
         )
         with open(config["datafile_path"], "wb") as f:
             np.save(f, data)
-        print(f'Data saved in {config["datafile_path"]} .')
+        print(f'Data saved in {config["datafile_path"]}.')
         return None
-    else:
-        pass
 
-    if config["ode_system"] == "pendulum":
+    elif config["ode_system"] == "pendulum":
         ode_system = data_config.pendulum
     elif config["ode_system"] == "lorentz":
         ode_system = data_config.lorentz
@@ -91,7 +89,7 @@ def run(config):
 
     with open(config["datafile_path"], "wb") as f:
         np.save(f, data)
-    print(f'Data saved in {config["datafile_path"]} .')
+    print(f'Data saved in {config["datafile_path"]}.')
 
 
 def main():
@@ -152,6 +150,10 @@ def select_Ausgrid_data(
     data_select = (
         data_select.iloc[:, 18:39].values + 1e-7
     )  # 18:39 is the columns of the data those are mostly non-zero
+
+    # Remove the data with more than 20% zeros
+    idxs_nonzero = (data_select > 1e-5).sum(axis=1) >= (data_select.shape[1] * 0.8)
+    data_select = data_select[idxs_nonzero]
 
     # Interpolate the data every 0.1 points
     data_select_len = data_select.shape[0]
