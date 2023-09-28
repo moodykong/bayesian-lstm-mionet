@@ -108,6 +108,7 @@ def execute_train(
             mlflow.log_artifact("database_generator.py", artifact_path="src")
             mlflow.log_artifact("train.py", artifact_path="src")
             mlflow.log_artifact("infer.py", artifact_path="src")
+            mlflow.log_params(config["args"])
 
             for epoch in progress_bar:
                 model.train()
