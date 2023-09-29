@@ -78,7 +78,8 @@ def run(config):
     ###################################
     # Step 7: load the model
     ###################################
-
+    mlflow.set_tracking_uri("mlruns")
+    print(config["trained_model_path"])
     model = mlflow.pytorch.load_model(
         config["trained_model_path"], map_location=torch_utils.device
     )

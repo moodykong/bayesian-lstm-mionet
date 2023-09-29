@@ -94,6 +94,7 @@ def execute_train(
     scalar = GradScaler()
 
     try:
+        mlflow.set_tracking_uri("mlruns")
         if mlflow.active_run():
             mlflow.end_run()
         mlflow.set_experiment(experiment_name=config["experiment_name"])
