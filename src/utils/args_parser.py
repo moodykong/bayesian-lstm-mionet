@@ -11,34 +11,46 @@ def add_train_args(parser: ArgumentParser):
         help="Path to the datafile.",
     )
     parser.add_argument(
+        "--state_component",
+        type=int,
+        default=config["state_component"],
+        help="Index of the state component to train.",
+    )
+    parser.add_argument(
         "--search_len",
         type=int,
         default=config["search_len"],
-        help="Length of the search length (h_max).",
+        help="Length of the search length (h_max). It is an integer of points.",
     )
     parser.add_argument(
         "--search_num",
         type=int,
         default=config["search_num"],
-        help="Number of the search points on each trajectory (N_h).",
+        help="Number of the search points on each trajectory (N_h). It is an integer of points.",
     )
     parser.add_argument(
         "--search_random",
         type=bool,
         default=config["search_random"],
-        help="Whether to sample the search points randomly. If False, the search points are evenly sampled.",
+        help="Whether to sample the search points randomly. If False, the search points are evenly sampled. Empty string means False. Otherwise, the value is True.",
+    )
+    parser.add_argument(
+        "--t_max",
+        type=float,
+        default=config["t_max"],
+        help="Maximum time (float) of the trajectory.",
     )
     parser.add_argument(
         "--offset",
         type=int,
         default=config["offset"],
-        help="Offset is the minimum length of trajectory memory.",
+        help="Offset is the minimum length (integer of points) of trajectory memory.",
     )
     parser.add_argument(
         "--verbose",
         type=bool,
         default=config["verbose"],
-        help="Whether to print the training process.",
+        help="Whether to print the training process. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--scale_mode",
@@ -74,7 +86,7 @@ def add_train_args(parser: ArgumentParser):
         "--use_scheduler",
         type=bool,
         default=config["use_scheduler"],
-        help="Whether to use the scheduler.",
+        help="Whether to use the scheduler. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--scheduler_patience",
@@ -101,6 +113,12 @@ def add_train_args(parser: ArgumentParser):
         help="Number of epochs to early stop.",
     )
     parser.add_argument(
+        "--save_model",
+        type=bool,
+        default=config["save_model"],
+        help="Whether to save the model. Empty string means False. Otherwise, the value is True.",
+    )
+    parser.add_argument(
         "--checkpoint_path",
         type=str,
         default=config["checkpoint_path"],
@@ -117,13 +135,51 @@ def add_train_args(parser: ArgumentParser):
         "--use_trained_model",
         type=bool,
         default=config["use_trained_model"],
-        help="Whether to use previously trained model.",
+        help="Whether to use previously trained model. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--trained_model_path",
         type=str,
         default=config["trained_model_path"],
         help="Path to the previously trained model.",
+    )
+    parser.add_argument(
+        "--device",
+        type=device_type,
+        default=config["device"],
+        help="Device to use. Enter an integer to use a specific GPU ID. Enter 'parallel' to use all available GPUs. Enter 'cpu' to use CPU.",
+        choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "parallel", "cpu"],
+    )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        default=config["experiment_name"],
+        help="Name of the experiment.",
+    )
+    parser.add_argument(
+        "--run_name",
+        type=str,
+        default=config["run_name"],
+        help="Name of the run for display.",
+    )
+    parser.add_argument(
+        "--plot_trajs",
+        type=bool,
+        default=config["plot_trajs"],
+        help="Whether to plot the test trajectories. Empty string means False. Otherwise, the value is True.",
+    )
+    parser.add_argument(
+        "--plot_idxs",
+        type=int,
+        nargs="*",
+        default=config["plot_idxs"],
+        help="Indices of the test trajectories to plot.",
+    )
+    parser.add_argument(
+        "--figure_path",
+        type=str,
+        default=config["figure_path"],
+        help="Path to save the figures.",
     )
     return parser
 
@@ -137,34 +193,52 @@ def add_infer_args(parser: ArgumentParser):
         help="Path to the datafile.",
     )
     parser.add_argument(
+        "--state_component",
+        type=int,
+        default=config["state_component"],
+        help="Index of the state component to infer.",
+    )
+    parser.add_argument(
+        "--t_max",
+        type=float,
+        default=config["t_max"],
+        help="Maximum time (float) of the trajectory.",
+    )
+    parser.add_argument(
         "--search_len",
         type=int,
         default=config["search_len"],
-        help="Length of the search length (h_max).",
+        help="Length of the search length (h_max). It is an integer of points.",
     )
     parser.add_argument(
         "--search_num",
         type=int,
         default=config["search_num"],
-        help="Number of the search points on each trajectory (N_h).",
+        help="Number of the search points on each trajectory (N_h). It is an integer of points.",
     )
     parser.add_argument(
         "--search_random",
         type=bool,
         default=config["search_random"],
-        help="Whether to sample the search points randomly. If False, the search points are evenly sampled.",
+        help="Whether to sample the search points randomly. If False, the search points are evenly sampled. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--offset",
         type=int,
         default=config["offset"],
-        help="Offset is the minimum length of trajectory memory.",
+        help="Offset is the minimum length (integer of points) of trajectory memory.",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=config["batch_size"],
+        help="Batch size of the training process.",
     )
     parser.add_argument(
         "--verbose",
         type=bool,
         default=config["verbose"],
-        help="Whether to print the inferring process.",
+        help="Whether to print the inferring process. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--scale_mode",
@@ -177,11 +251,12 @@ def add_infer_args(parser: ArgumentParser):
         "--plot_trajs",
         type=bool,
         default=config["plot_trajs"],
-        help="Whether to plot the trajectories.",
+        help="Whether to plot the trajectories. Empty string means False. Otherwise, the value is True.",
     )
     parser.add_argument(
         "--plot_idxs",
-        type=list,
+        type=int,
+        nargs="*",
         default=config["plot_idxs"],
         help="Indices of the trajectories to plot.",
     )
@@ -196,6 +271,13 @@ def add_infer_args(parser: ArgumentParser):
         type=str,
         default=config["figure_path"],
         help="Path to save the figures.",
+    )
+    parser.add_argument(
+        "--device",
+        type=device_type,
+        default=config["device"],
+        help="Device to use. Enter an integer to use a specific GPU ID. Enter 'parallel' to use all available GPUs. Enter 'cpu' to use CPU.",
+        choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "parallel", "cpu"],
     )
     return parser
 
@@ -284,13 +366,13 @@ def add_data_args(parser: ArgumentParser):
         "--t_max",
         type=float,
         default=config["t_max"],
-        help="Maximum time (seconds) of the trajectory.",
+        help="Maximum time (float) of the trajectory.",
     )
     parser.add_argument(
         "--step_size",
         type=float,
         default=config["step_size"],
-        help="Step size (seconds) of the trajectory.",
+        help="Step size (float) of the trajectory.",
     )
     parser.add_argument(
         "--n_sample",
@@ -328,7 +410,6 @@ def add_data_args(parser: ArgumentParser):
     parser.add_argument(
         "--Ausgrid_end_date",
         type=str,
-        nargs=3,
         default=config["Ausgrid_end_date"],
         help="End date of the Ausgrid dataset, e.g., 2011-6-30.",
     )
@@ -356,8 +437,14 @@ def add_data_args(parser: ArgumentParser):
 
 def args_to_config(parser: ArgumentParser):
     args = parser.parse_args()
-    config = dict()
-    config["args"] = vars(args)
-    for arg in vars(args):
-        config[arg] = getattr(args, arg, None)
+    config = vars(args)
     return config
+
+
+def device_type(value):
+    if value in ["parallel", "cpu"]:
+        return value
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid device choice: {value}")
