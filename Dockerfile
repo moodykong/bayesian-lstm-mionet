@@ -1,6 +1,7 @@
 FROM python:3.10-bookworm
 
 RUN apt update && apt -y upgrade 
+RUN apt install zip unzip
 
 # Create the working directory in the container.
 WORKDIR /LSTM-MIONet
