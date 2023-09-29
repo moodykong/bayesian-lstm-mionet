@@ -17,10 +17,10 @@ LOSS_FUNCTION = "MSE"
 
 ## Data options ##
 OFFSET = 0.0
-T_MAX = 10.5
+T_MAX = None
 STATE_COMPONENT = 0
-SEARCH_LEN = 5
-SEARCH_NUM = 5
+SEARCH_LEN = 10
+SEARCH_NUM = 10
 SEARCH_RANDOM = True
 SCALE_MODE = ""
 
@@ -34,6 +34,11 @@ EARLY_STOPPING_EPOCHS = 80
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
 FIGURE_PATH = "figures/"
+
+## Device options ##
+DEVICE = "parallel"  # int,"parallel","cpu"
+EXPERIMENT_NAME = "LSTM_MIONet_Experiment"
+RUN_NAME = "Default_Single_Run"
 
 
 def get_config():
@@ -64,5 +69,8 @@ def get_config():
         "plot_trajs": PLOT_TRAJS,
         "plot_idxs": PLOT_IDXS,
         "figure_path": FIGURE_PATH,
+        "device": DEVICE,
+        "experiment_name": EXPERIMENT_NAME,
+        "run_name": RUN_NAME,
     }
     return config
