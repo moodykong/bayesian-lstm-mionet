@@ -2,11 +2,13 @@
 
 ## How to set up the environment
 
-I suggest to use Microsoft VS Code and devcontainder to instal the environment of this repo.
+The recommended environment tool for this repo is the devcontainder extension of Microsoft VS Code.
 
-The devcontainer is configured in ./.devcontainer . Docker engine is required to run this container.
+The configuration file of devcontainer is in ./.devcontainer . 
 
-Alternatively, you can use local environment tool like pip or conda to set up the environment, and the dependencies are available at ./requirements.txt .
+Docker engine is required to run this container.
+
+Alternatively, local environment tool like pip or conda can be used to set up the environment, and the dependencies are available at ./requirements.txt .
 
 ## How to train and test the model
 
