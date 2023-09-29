@@ -6,16 +6,16 @@
 	// Path to the docker compose file.
 	"dockerComposeFile": "../docker-compose.yml",
 	"service": "app",
-	"workspaceFolder": "/PENDULUM",
+	"workspaceFolder": "/LSTM-MIONet",
 	
 	
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ms-vscode.azure-account",
-				"ms-toolsai.vscode-ai",
-				"ms-azuretools.vscode-docker",
+				//"ms-vscode.azure-account",
+				//"ms-toolsai.vscode-ai",
+				//"ms-azuretools.vscode-docker",
 				"GitHub.copilot",
 				"GitHub.copilot-chat",
 				"ms-python.python",

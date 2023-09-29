@@ -15,7 +15,7 @@ services:
 
     # Link the files here to the code directory in the container.
     volumes:
-      - .:/PENDULUM:cached
+      - .:/LSTM-MIONet:cached
     
     deploy:
       resources:
