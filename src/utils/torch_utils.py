@@ -8,22 +8,25 @@ device = None
 
 
 # initializes GPU
-def init_gpu(use_gpu: bool = True, gpu_id: Any = 0, verbose: bool = True) -> None:
+def init_gpu(gpu_id: Any = 0, verbose: bool = True) -> None:
     """Initializes torch device."""
     global device
-    if torch.cuda.is_available() and use_gpu:
-        if isinstance(gpu_id, int):
-            device = torch.device("cuda:" + str(gpu_id))
-            if verbose:
-                print("Using GPU id {}.".format(gpu_id))
-        elif gpu_id == "gpu":
-            device = torch.device("cuda")
-            if verbose:
-                print("Using all available {} GPUs.".format(torch.cuda.device_count()))
+    if torch.cuda.is_available() and isinstance(gpu_id, int):
+        device = torch.device("cuda:" + str(gpu_id))
+        if verbose:
+            print("Using GPU ID {}.".format(gpu_id))
+    elif torch.cuda.is_available() and gpu_id == "parallel":
+        device = torch.device("cuda")
+        if verbose:
+            print(
+                "Using all available {} GPUs in parallel.".format(
+                    torch.cuda.device_count()
+                )
+            )
     else:
         device = torch.device("cpu")
         if verbose:
-            print("GPU not detected. Defaulting to CPU.")
+            print("GPU is not used, defaulting to CPU.")
 
 
 # save model
