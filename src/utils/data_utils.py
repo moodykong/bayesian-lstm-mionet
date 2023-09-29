@@ -145,7 +145,7 @@ def prepare_local_predict_dataset(
     search_num: int = 5,
     search_random: bool = True,
     offset: int = 0,
-    t_max: int = 10,
+    t_max: Any = 10,
     state_component: int = 0,
     verbose: bool = True,
 ) -> list:
@@ -161,7 +161,7 @@ def prepare_local_predict_dataset(
     nData = x.shape[0]
     t = t.squeeze()
     t_s = t[1] - t[0]
-    t_max = t_max / t_s
+    t_max = t_max / t_s if t_max is not None else t.size
     offset = offset / t_s
 
     if offset + search_len > t.size:
