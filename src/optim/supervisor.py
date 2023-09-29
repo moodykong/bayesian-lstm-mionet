@@ -5,7 +5,6 @@ import torch
 
 from torch.utils.data import random_split, DataLoader
 from torch.cuda.amp import autocast, GradScaler
-from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
 from typing import Any, Callable
 import utils.torch_utils as torch_utils
@@ -34,8 +33,6 @@ def execute_train(
             )
         )
 
-    ## Step 0: initialize the tensorboard writer
-    writer = SummaryWriter()
     ## Step 1: use trained model if required
     if config["use_trained_model"]:
         try:
@@ -92,15 +89,16 @@ def execute_train(
 
     ## Step 6: training loop
     model.to(device)
-    model = torch.nn.DataParallel(model)
+    if device == "parallel":
+        model = torch.nn.DataParallel(model)
     scalar = GradScaler()
 
     try:
         if mlflow.active_run():
             mlflow.end_run()
-        mlflow.set_experiment("LSTM_MIONet_Experiment")
+        mlflow.set_experiment(experiment_name=config["experiment_name"])
 
-        with mlflow.start_run():
+        with mlflow.start_run(run_name=config["run_name"]):
             mlflow.log_artifacts("config", artifact_path="src/config")
             mlflow.log_artifact("models/architectures.py", artifact_path="src/models")
             mlflow.log_artifact("optim/supervisor.py", artifact_path="src/optim")
@@ -108,7 +106,7 @@ def execute_train(
             mlflow.log_artifact("database_generator.py", artifact_path="src")
             mlflow.log_artifact("train.py", artifact_path="src")
             mlflow.log_artifact("infer.py", artifact_path="src")
-            mlflow.log_params(config["args"])
+            mlflow.log_params(config)
 
             for epoch in progress_bar:
                 model.train()
@@ -142,7 +140,6 @@ def execute_train(
 
                 log_metric["train_loss"].append([epoch, avg_epoch_loss])
 
-                writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
                 mlflow.log_metric("train_loss", avg_epoch_loss, epoch)
 
                 ## validate and print
@@ -173,7 +170,6 @@ def execute_train(
                             )
 
                         log_metric["val_loss"].append([epoch, avg_epoch_val_loss])
-                        writer.add_scalar("Loss/val", avg_epoch_val_loss, epoch)
                         mlflow.log_metric("val_loss", avg_epoch_val_loss, epoch)
 
                     ## save best results
@@ -288,6 +284,9 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
     L1_error_mat = np.linalg.norm(y_true - y_pred, ord=1, axis=1) / np.linalg.norm(
         y_true, ord=1, axis=1
     )
+
+    if isinstance(config["scale_mode"], int):
+        config["plot_idxs"] = [config["plot_idxs"]]
 
     for idx in range(num_trajs):
         # Plot the trajectories
