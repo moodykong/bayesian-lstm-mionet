@@ -25,7 +25,7 @@ def run(config):
     ###################################
     # Step 1: initialize the gpu
     ###################################
-    torch_utils.init_gpu(use_gpu=True, gpu_id="gpu", verbose=config["verbose"])
+    torch_utils.init_gpu(gpu_id=config["device"], verbose=config["verbose"])
 
     ###################################
     # Step 2: set the seed
@@ -48,7 +48,7 @@ def run(config):
     ###################################
 
     train_data, test_data = split_dataset(
-        train_dataset, test_size=0.0, verbose=config["verbose"]
+        train_dataset, test_size=0.1, verbose=config["verbose"]
     )
     input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
         data=train_data,
@@ -63,23 +63,23 @@ def run(config):
     train_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
     state_feature_num = x_n.shape[-1]
 
-    # input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
-    #    data=test_data,
-    #    state_component=config["state_component"],
-    #    offset=config["offset"],
-    #    t_max=config["t_max"],
-    #    search_len=config["search_len"],
-    #    search_num=config["search_num"],
-    #    search_random=config["search_random"],
-    #    verbose=config["verbose"],
-    # )
-    # test_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
+    input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
+        data=test_data,
+        state_component=config["state_component"],
+        offset=config["offset"],
+        t_max=config["t_max"],
+        search_len=config["search_len"],
+        search_num=config["search_num"],
+        search_random=config["search_random"],
+        verbose=config["verbose"],
+    )
+    test_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
 
     ###################################
     # Step 5: update dataset statistics
     ###################################
     train_data_stat.update_statistics()
-    # test_data_stat.update_statistics()
+    test_data_stat.update_statistics()
 
     ###################################
     # Step 6: scale and move numpy data to tensor
@@ -89,10 +89,10 @@ def run(config):
     )
     train_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
 
-    # input_masked, x_n, x_next, t_params = scale_and_to_tensor(
-    #    test_data_stat, scale_mode=config["scale_mode"], device=torch_utils.device
-    # )
-    # test_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
+    input_masked, x_n, x_next, t_params = scale_and_to_tensor(
+        test_data_stat, scale_mode=config["scale_mode"], device=torch_utils.device
+    )
+    test_data_torch = Dataset_Torch(input_masked, x_n, x_next, t_params)
 
     ###################################
     # Step 7: define the model
@@ -133,24 +133,21 @@ def run(config):
     # Step 9: test the model
     ###################################
 
-    # execute_test(config=config, model=model, dataset=test_data_torch)
+    execute_test(config=config, model=model, dataset=test_data_torch)
 
 
 def main():
-    # Load the configurations
-    config = dict()
-    config.update(train_config.get_config())
-    config.update(architecture_config.get_config())
     # Add the arguments
     parser = argparse.ArgumentParser()
     parser = add_train_args(parser)
     parser = add_architecture_args(parser)
+
     # Parse the arguments
-    args_config = args_to_config(parser)
-    # Update the configurations
-    config.update(args_config)
+    config = args_to_config(parser)
+
     # Create the checkpoint path
     os.makedirs(config["checkpoint_path"], exist_ok=True)
+
     # Run the program
     run(config)
 

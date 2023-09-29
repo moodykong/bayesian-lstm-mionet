@@ -26,7 +26,7 @@ def run(config):
     ###################################
     # Step 1: initialize the gpu
     ###################################
-    torch_utils.init_gpu(use_gpu=True, gpu_id=1, verbose=config["verbose"])
+    torch_utils.init_gpu(gpu_id=config["device"], verbose=config["verbose"])
 
     ###################################
     # Step 2: set the seed
@@ -82,6 +82,8 @@ def run(config):
     model = mlflow.pytorch.load_model(
         config["trained_model_path"], map_location=torch_utils.device
     )
+
+    # Extract the model from the DataParallel wrapper
     if isinstance(model, torch.nn.DataParallel):
         model = model.module
     model = model.to(torch_utils.device)
@@ -92,18 +94,13 @@ def run(config):
 
 
 def main():
-    # Load the configurations
-    config = dict()
-    config.update(infer_config.get_config())
-    config.update(architecture_config.get_config())
     # Add the arguments
     parser = argparse.ArgumentParser()
     parser = add_infer_args(parser)
-    parser = add_architecture_args(parser)
+
     # Parse the arguments
-    args_config = args_to_config(parser)
-    # Update the configurations
-    config.update(args_config)
+    config = args_to_config(parser)
+
     # Run the program
     run(config)
 
