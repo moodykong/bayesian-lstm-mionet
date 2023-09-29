@@ -4,20 +4,11 @@ import numpy as np
 DATAFILE_PATH = "data/Ausgrid_cust_51-60.npy"
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
-# TRAINED_MODEL_PATH = (
-#    "runs:/031d4006d072418d9fefed87c9d64b23/best_model_epoch_299"  # pendulum h=0.01
-# )
-# TRAINED_MODEL_PATH = (
-#    "runs:/76b3f35e9d3b4ad1b93076ee6df6dc9a/best_model_epoch_170"  # pendulum h=0.1
-# )
-# TRAINED_MODEL_PATH = (
-#    "runs:/09ea52ba93d54fc4b4efb715709e1ff7/best_model_epoch_381"  # lorentz h=0.01
-# )
-# TRAINED_MODEL_PATH = (
-#    "runs:/5e1fec5193a3437bb041dea1aa00fb80/best_model_epoch_280"  # pendulum h=0.2
-# )
-# TRAINED_MODEL_PATH = "runs:/dc2b156f846347289bcb1be4fe054f85/best_model_epoch_100"  # Ausgrid customer 1-50, h=0.25
-TRAINED_MODEL_PATH = "runs:/f59b5c9580d24ef08aa32bd8cc77a9cb/best_model_epoch_140"  # Ausgrid customer 1-50, h=0.5
+
+## Load model ##
+# TRAINED_MODEL_PATH = "models:/pendulum/latest"
+# TRAINED_MODEL_PATH = "models:/lorentz/latest"
+TRAINED_MODEL_PATH = "models:/Ausgrid/latest"
 
 FIGURE_PATH = "figures/"
 VERBOSE = True
