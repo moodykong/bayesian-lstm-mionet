@@ -1,32 +1,26 @@
 import numpy as np
 from datetime import datetime
 
-# Define the dynamic system
+## Define the dynamic system ##
 ODE_SYSTEM = "Ausgrid"  # 'pendulum' or 'lorentz' or 'Ausgrid'
 
-# For pendulum system or lorentz system
+## For pendulum system or lorentz system ##
 T_MAX = 10
 STEP_SIZE = 0.01
 N_SAMPLE = 10
 X_INIT_PTS = np.array([[-np.pi, np.pi], [-8.0, 8.0]])  # initial states range
 CONTROL_FUNC = "gaussian"  # 'designate' or 'gaussian'
 
-# For Ausgrid system
-CUSTOMER_ID = np.arange(1, 51).tolist()
+## For Ausgrid system ##
+CUSTOMER_ID = np.arange(51, 61).tolist()
 START_DATE = datetime(2010, 7, 1)
 END_DATE = datetime(2011, 6, 30)
 CATEGORY = "GG"
 DELTA_T_IDXS = 0.1
 VERBOSE = True
 
-if ODE_SYSTEM == "pendulum" or ODE_SYSTEM == "lorentz":
-    DATAFILE_PATH = (
-        f"data/{ODE_SYSTEM}_ctr_{CONTROL_FUNC}_N_{N_SAMPLE}_T{T_MAX}_h{STEP_SIZE}.npy"
-    )
-elif ODE_SYSTEM == "Ausgrid":
-    DATAFILE_PATH = "data/Ausgrid_select.npy"
-else:
-    DATAFILE_PATH = None
+# Datafile path
+DATAFILE_PATH = "data/datafile_default_name.npy"
 
 
 def get_config():
