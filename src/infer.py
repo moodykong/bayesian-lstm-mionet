@@ -11,6 +11,7 @@ from utils.data_utils import (
     Dataset_Torch,
     Dataset_Stat,
     prepare_local_predict_dataset,
+    prepare_future_local_predict_dataset,
     scale_and_to_tensor,
     split_dataset,
 )
@@ -48,7 +49,19 @@ def run(config):
 
     _, test_data = split_dataset(test_dataset, test_size=1, verbose=config["verbose"])
 
-    input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
+    match config["architecture"]:
+        case "DeepONet":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case "DeepONet_Local":
+            prepare_nn_dataset = prepare_future_local_predict_dataset
+        case "LSTM_MIONet":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case "LSTM_MIONet_Static":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case _:
+            raise ValueError("Invalid architecture string.")
+
+    input_masked, x_n, x_next, t_params = prepare_nn_dataset(
         data=test_data,
         state_component=config["state_component"],
         search_len=config["search_len"],
