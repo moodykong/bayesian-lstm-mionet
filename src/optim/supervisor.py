@@ -96,8 +96,6 @@ def execute_train(
 
     try:
         mlflow.set_tracking_uri("mlruns")
-        if mlflow.active_run():
-            mlflow.end_run()
         mlflow.set_experiment(experiment_name=config["experiment_name"])
 
         with mlflow.start_run(run_name=config["run_name"]):
