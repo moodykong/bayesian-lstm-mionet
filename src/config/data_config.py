@@ -73,7 +73,7 @@ def lorentz(x, u):
 def control_formula(t, x):
     theta = x[0]
     theta_dot = x[1]
-    formula = -0.80 * theta_dot
+    formula = np.sin(t / 2)
     return formula
 
 
