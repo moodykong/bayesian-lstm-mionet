@@ -17,6 +17,13 @@ def add_train_args(parser: ArgumentParser):
         help="Index of the state component to train.",
     )
     parser.add_argument(
+        "--architecture",
+        type=str,
+        default=config["architecture"],
+        choices=["LSTM_MIONet", "LSTM_MIONet_Static", "DeepONet", "DeepONet_Local"],
+        help="Architecture to use.",
+    )
+    parser.add_argument(
         "--search_len",
         type=int,
         default=config["search_len"],
@@ -191,6 +198,13 @@ def add_infer_args(parser: ArgumentParser):
         type=str,
         default=config["datafile_path"],
         help="Path to the datafile.",
+    )
+    parser.add_argument(
+        "--architecture",
+        type=str,
+        default=config["architecture"],
+        choices=["LSTM_MIONet", "LSTM_MIONet_Static", "DeepONet", "DeepONet_Local"],
+        help="Architecture to use.",
     )
     parser.add_argument(
         "--recursive",

@@ -4,12 +4,13 @@
 import numpy as np
 import torch
 from utils import torch_utils
-from models.architectures import LSTM_MIONet, LSTM_MIONet_Static
+from models import architectures
 from optim.supervisor import execute_train, execute_test
 from utils.data_utils import (
     Dataset_Torch,
     Dataset_Stat,
     prepare_local_predict_dataset,
+    prepare_future_local_predict_dataset,
     scale_and_to_tensor,
     split_dataset,
 )
@@ -50,7 +51,20 @@ def run(config):
     train_data, test_data = split_dataset(
         train_dataset, test_size=0.1, verbose=config["verbose"]
     )
-    input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
+
+    match config["architecture"]:
+        case "DeepONet":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case "DeepONet_Local":
+            prepare_nn_dataset = prepare_future_local_predict_dataset
+        case "LSTM_MIONet":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case "LSTM_MIONet_Static":
+            prepare_nn_dataset = prepare_local_predict_dataset
+        case _:
+            raise ValueError("Invalid architecture string.")
+
+    input_masked, x_n, x_next, t_params = prepare_nn_dataset(
         data=train_data,
         state_component=config["state_component"],
         t_max=config["t_max"],
@@ -63,7 +77,7 @@ def run(config):
     train_data_stat = Dataset_Stat(input_masked, x_n, x_next, t_params)
     state_feature_num = x_n.shape[-1]
 
-    input_masked, x_n, x_next, t_params = prepare_local_predict_dataset(
+    input_masked, x_n, x_next, t_params = prepare_nn_dataset(
         data=test_data,
         state_component=config["state_component"],
         offset=config["offset"],
@@ -116,7 +130,21 @@ def run(config):
     trunk["layer_size_list"] = [config["trunk_width"]] * config["trunk_depth"]
     trunk["activation"] = config["trunk_activation"]
 
-    model = LSTM_MIONet(branch_state, branch_memory, trunk, use_bias=True)
+    match config["architecture"]:
+        case "DeepONet":
+            model = architectures.DeepONet(branch_state, trunk, use_bias=True)
+        case "DeepONet_Local":
+            model = architectures.DeepONet_Local(branch_state, trunk, use_bias=True)
+        case "LSTM_MIONet":
+            model = architectures.LSTM_MIONet(
+                branch_state, branch_memory, trunk, use_bias=True
+            )
+        case "LSTM_MIONet_Static":
+            model = architectures.LSTM_MIONet_Static(
+                branch_state, branch_memory, trunk, use_bias=True
+            )
+        case _:
+            raise ValueError("Invalid architecture string.")
 
     if config["verbose"]:
         print(model)

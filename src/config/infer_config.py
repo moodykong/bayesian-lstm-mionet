@@ -4,15 +4,17 @@ import numpy as np
 DATAFILE_PATH = "data/Ausgrid_cust_51-60.npy"
 PLOT_TRAJS = True
 PLOT_IDXS = [0]
+FIGURE_PATH = "figures/"
+VERBOSE = True
+RECURSIVE = False
 
 ## Load model ##
 # TRAINED_MODEL_PATH = "models:/pendulum/latest"
 # TRAINED_MODEL_PATH = "models:/lorentz/latest"
 TRAINED_MODEL_PATH = "models:/Ausgrid/latest"
 
-FIGURE_PATH = "figures/"
-VERBOSE = True
-RECURSIVE = False
+## Architecture options ##
+ARCHITECTURE = "LSTM_MIONet"
 
 ## Data options ##
 OFFSET = 0
@@ -33,6 +35,7 @@ DEVICE = 1  # int,"parallel","cpu"
 def get_config():
     config = {
         "datafile_path": DATAFILE_PATH,
+        "architecture": ARCHITECTURE,
         "recursive": RECURSIVE,
         "autonomous": AUTONOMOUS,
         "state_component": STATE_COMPONENT,

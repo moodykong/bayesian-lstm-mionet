@@ -142,6 +142,77 @@ class LSTM_MIONet(nn.Module):
         return pred_x_next + self.tau if self.use_bias else pred_x_next
 
 
+# Vanilla DeepONet
+class DeepONet(nn.Module):
+    def __init__(self, branch: dict, trunk: dict, use_bias: bool = True) -> None:
+        super(DeepONet, self).__init__()
+
+        self.branch = MLP(
+            in_features=branch["state_feature_num"],
+            layer_size=branch["layer_size_list"],
+            activation=branch["activation"],
+        )
+        self.trunk = MLP(
+            in_features=1,
+            layer_size=trunk["layer_size_list"],
+            activation=trunk["activation"],
+        )
+
+        self.use_bias = use_bias
+
+        if use_bias:
+            self.tau = nn.Parameter(torch.rand(1), requires_grad=True)
+
+    def forward(self, x: list) -> list:
+        _, x_n, t_params = x
+        h = t_params[:, [1]]
+        B = self.branch(x_n)
+        T = self.trunk(h)
+
+        pred_x_next = torch.einsum("bi, bi -> b", B, T)
+        pred_x_next = torch.unsqueeze(pred_x_next, dim=-1)
+
+        return pred_x_next + self.tau if self.use_bias else pred_x_next
+
+
+# Local DeepONet
+class DeepONet_Local(nn.Module):
+    def __init__(self, branch: dict, trunk: dict, use_bias: bool = True) -> None:
+        super(DeepONet_Local, self).__init__()
+
+        self.branch_1 = MLP(
+            in_features=branch["state_feature_num"],
+            layer_size=branch["layer_size_list"],
+            activation=branch["activation"],
+        )
+        self.branch_2 = MLP(
+            in_features=branch["state_feature_num"],
+            layer_size=branch["layer_size_list"],
+            activation=branch["activation"],
+        )
+        self.trunk = MLP(
+            in_features=1,
+            layer_size=trunk["layer_size_list"],
+            activation=trunk["activation"],
+        )
+
+        self.use_bias = use_bias
+
+        if use_bias:
+            self.tau = nn.Parameter(torch.rand(1), requires_grad=True)
+
+    def forward(self, x: list) -> list:
+        input_data, x_n, t_params = x
+        h = t_params[:, [1]]
+        B = self.branch_1(x_n) * self.branch_2(input_data)
+        T = self.trunk(h)
+
+        pred_x_next = torch.einsum("bi, bi -> b", B, T)
+        pred_x_next = torch.unsqueeze(pred_x_next, dim=-1)
+
+        return pred_x_next + self.tau if self.use_bias else pred_x_next
+
+
 # MLP
 class MLP(nn.Module):
     def __init__(self, in_features: int, layer_size: list, activation: str) -> None:

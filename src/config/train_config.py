@@ -14,6 +14,8 @@ SCHEDULER_PATIENCE = 10
 SCHEDULER_FACTOR = 0.5
 LOSS_FUNCTION = "MSE"
 
+## Architecture options ##
+ARCHITECTURE = "LSTM_MIONet"
 
 ## Data options ##
 OFFSET = 0.0
@@ -44,6 +46,7 @@ RUN_NAME = "Default_Single_Run"
 def get_config():
     config = {
         "datafile_path": DATAFILE_PATH,
+        "architecture": ARCHITECTURE,
         "state_component": STATE_COMPONENT,
         "search_len": SEARCH_LEN,
         "search_num": SEARCH_NUM,
