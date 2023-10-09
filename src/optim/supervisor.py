@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import random_split, DataLoader
 from torch.cuda.amp import autocast, GradScaler
 from tqdm.auto import trange
+from tqdm import tqdm
 from typing import Any, Callable
 import utils.torch_utils as torch_utils
 from utils.data_utils import (
@@ -268,6 +269,148 @@ def execute_test(config: dict, model: torch.nn, dataset: Any) -> list:
 
     # Stack the results to assemble trajectories
     y_pred = np.vstack(y_pred_list).reshape(config["search_num"], -1).T
+    y_true = np.vstack(y_true_list).reshape(config["search_num"], -1).T
+    t_next = (
+        np.vstack(t_next_list).reshape(config["search_num"], -1).T
+    )  # [N_sample, N_search]
+    num_trajs = y_pred.shape[0]
+
+    del y_pred_list, y_true_list, t_next_list
+
+    assert y_pred.shape == y_true.shape == t_next.shape  # check the shape of the output
+
+    # Compute validation loss and plot
+    L2_error_mat = np.linalg.norm(y_true - y_pred, axis=1) / np.linalg.norm(
+        y_true, axis=1
+    )
+    L1_error_mat = np.linalg.norm(y_true - y_pred, ord=1, axis=1) / np.linalg.norm(
+        y_true, ord=1, axis=1
+    )
+
+    if isinstance(config["scale_mode"], int):
+        config["plot_idxs"] = [config["plot_idxs"]]
+
+    for idx in range(num_trajs):
+        # Plot the trajectories
+        if (idx in config["plot_idxs"]) and config["plot_trajs"]:
+            fig_filename = config["figure_path"] + "infer_trajs.png"
+            plot_comparison(
+                (t_next[idx].flatten(), t_next[idx].flatten()),
+                (y_true[idx].flatten(), y_pred[idx].flatten()),
+                ("True", "Pred"),
+                color_list=("red", "blue"),
+                linestyle_list=("solid", "dashed"),
+                fig_path=fig_filename,
+                save_fig=True,
+            )
+
+    # Print errors
+    L1_mean = np.mean(L1_error_mat)
+    L1_std = np.std(L1_error_mat)
+
+    L2_mean = np.mean(L2_error_mat)
+    L2_std = np.std(L2_error_mat)
+
+    if config["verbose"]:
+        print("\n=============================")
+        print("     L1-relative Error %      ")
+        print("=============================")
+        print("     mean     st. dev.  ")
+        print("-----------------------------")
+        print(" %9.4f %9.4f" % (L1_mean * 100, L1_std * 100))
+        print("-----------------------------")
+
+        print("\n=============================")
+        print("     L2-relative Error %      ")
+        print("=============================")
+        print("     mean     st. dev.  ")
+        print("-----------------------------")
+        print(" %9.4f %9.4f" % (L2_mean * 100, L2_std * 100))
+        print("-----------------------------")
+
+        print("\n=============================")
+        print("[L1-relative Error list, L2-relative Error list ] %     ")
+        print("=============================")
+        print(
+            np.hstack((L1_error_mat.reshape(-1, 1), L2_error_mat.reshape(-1, 1))) * 100
+        )
+
+    log_metric = {}
+    log_metric["L1_error_mat"] = L1_error_mat
+    log_metric["L2_error_mat"] = L2_error_mat
+    log_metric["t_next"] = t_next
+    log_metric["y_pred"] = y_pred
+    log_metric["y_true"] = y_true
+
+    return log_metric
+
+
+def execute_test_recursive(config: dict, model: torch.nn, dataset: Any) -> list:
+    if config["verbose"]:
+        print("\n***** Testing with {} data samples*****\n".format(dataset.len))
+
+    ## Step 1: load the data
+    test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    ## Step 2: infer at each time step
+    t_next_list = []
+    y_pred_list = dataset.x_n.reshape(config["search_num"], -1).T
+    # Add the last output time step to the list
+    y_pred_last = dataset.x_next[[-1], :]
+    y_pred_list = torch.hstack((y_pred_list, y_pred_last))
+    del y_pred_last
+
+    y_true_list = []
+
+    ## Step 3: infer at each time step
+    model.eval()
+    progress_bar = tqdm(total=dataset.len, desc="Infering ...", dynamic_ncols=True)
+
+    for idx, (x_test_batch, y_test_batch) in enumerate(test_loader):
+        ## batch testing
+        # step a: forward pass without computing gradients
+        with torch.no_grad():
+            y_pred = model(x_test_batch)
+
+            x_n = y_pred_list[
+                idx // (config["search_num"]), idx % (config["search_num"])
+            ].view(-1, 1)
+
+            x_test_batch[1] = x_n
+
+            if config["autonomous"]:
+                input_traj = y_pred_list[idx // config["search_num"], :].clone()
+                input_traj[((idx % config["search_num"]) + 1) :] = 0
+                x_test_batch[0] = input_traj[None, :-1, None]
+
+            y_pred_recursive = model(x_test_batch)
+
+            assert torch.numel(y_pred) == 1
+
+            teacher_forcing = torch.rand(1) < config["teacher_forcing_prob"]
+            if (config["search_num"]) - idx % (
+                config["search_num"]
+            ) > 0 and not teacher_forcing:
+                y_pred = y_pred_recursive
+
+            y_pred_list[
+                idx // (config["search_num"]),
+                idx % (config["search_num"]) + 1,
+            ] = y_pred.view(-1)
+
+            y_true = y_test_batch.detach().cpu().numpy()
+            y_true_list.append(y_true)
+
+            t_params = x_test_batch[-1].detach().cpu().numpy()
+            t_next = t_params[:, [-1]]
+            t_next_list.append(t_next)
+
+            del y_pred, y_true, t_params, t_next, teacher_forcing
+        progress_bar.update(1)
+    progress_bar.close()
+
+    # Stack the results to assemble trajectories
+    y_pred = y_pred_list[:, 1:].detach().cpu().numpy()
     y_true = np.vstack(y_true_list).reshape(config["search_num"], -1).T
     t_next = (
         np.vstack(t_next_list).reshape(config["search_num"], -1).T

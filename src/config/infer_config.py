@@ -12,6 +12,7 @@ TRAINED_MODEL_PATH = "models:/Ausgrid/latest"
 
 FIGURE_PATH = "figures/"
 VERBOSE = True
+RECURSIVE = False
 
 ## Data options ##
 OFFSET = 0
@@ -22,6 +23,8 @@ SEARCH_NUM = 50
 BATCH_SIZE = 100
 SEARCH_RANDOM = False
 SCALE_MODE = ""
+AUTONOMOUS = True
+TEACHER_FORCING_PROB = 1.0
 
 ## Device options ##
 DEVICE = 1  # int,"parallel","cpu"
@@ -30,6 +33,8 @@ DEVICE = 1  # int,"parallel","cpu"
 def get_config():
     config = {
         "datafile_path": DATAFILE_PATH,
+        "recursive": RECURSIVE,
+        "autonomous": AUTONOMOUS,
         "state_component": STATE_COMPONENT,
         "search_len": SEARCH_LEN,
         "search_num": SEARCH_NUM,
@@ -38,6 +43,7 @@ def get_config():
         "t_max": T_MAX,
         "verbose": VERBOSE,
         "scale_mode": SCALE_MODE,
+        "teacher_forcing_prob": TEACHER_FORCING_PROB,
         "batch_size": BATCH_SIZE,
         "plot_trajs": PLOT_TRAJS,
         "plot_idxs": PLOT_IDXS,

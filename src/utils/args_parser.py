@@ -193,6 +193,24 @@ def add_infer_args(parser: ArgumentParser):
         help="Path to the datafile.",
     )
     parser.add_argument(
+        "--recursive",
+        type=bool,
+        default=config["recursive"],
+        help="Whether to recursively infer the trajectories. Empty string means False. Otherwise, the value is True.",
+    )
+    parser.add_argument(
+        "--teacher_forcing_prob",
+        type=float,
+        default=config["teacher_forcing_prob"],
+        help="Probability of using teacher forcing.",
+    )
+    parser.add_argument(
+        "--autonomous",
+        type=bool,
+        default=config["autonomous"],
+        help="Whether to use autonomous system. Empty string means False. Otherwise, the value is True.",
+    )
+    parser.add_argument(
         "--state_component",
         type=int,
         default=config["state_component"],

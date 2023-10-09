@@ -6,7 +6,7 @@ import torch
 from models.architectures import LSTM_MIONet
 import mlflow
 from utils import torch_utils
-from optim.supervisor import execute_test
+from optim.supervisor import execute_test, execute_test_recursive
 from utils.data_utils import (
     Dataset_Torch,
     Dataset_Stat,
@@ -91,7 +91,11 @@ def run(config):
 
     if config["verbose"]:
         print(model)
-    execute_test(config=config, model=model, dataset=test_data_torch)
+
+    if config["recursive"]:
+        execute_test_recursive(config=config, model=model, dataset=test_data_torch)
+    else:
+        execute_test(config=config, model=model, dataset=test_data_torch)
 
 
 def main():
