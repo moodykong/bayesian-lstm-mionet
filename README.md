@@ -2,7 +2,7 @@
 
 ## How to set up the environment
 
-The recommended environment tool for this repo is the devcontainder extension of Microsoft VS Code.
+The recommended environment tool for this repo is the **devcontainer** extension of **Microsoft VS Code**.
 
 The configuration file of devcontainer is in `./.devcontainer` . 
 
