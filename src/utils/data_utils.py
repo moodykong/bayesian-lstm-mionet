@@ -217,7 +217,7 @@ def prepare_local_predict_dataset(
         idx_end = t.size - offset - search_len * 2
         # Select the starting index
         t_params[:, :, 0] = (
-            ((offset + np.linspace(0, idx_end, search_num))).astype(int).reshape(-1, 1)
+            ((offset + np.linspace(1, idx_end, search_num))).astype(int).reshape(-1, 1)
         )
         # Select the length of the interval
         t_params[:, :, 1] = t_params[:, :, 1] * 0.5 * search_len
@@ -359,7 +359,7 @@ def prepare_future_local_predict_dataset(
         idx_end = t.size - offset - search_len * 2
         # Select the starting index
         t_params[:, :, 0] = (
-            ((offset + np.linspace(0, idx_end, search_num))).astype(int).reshape(-1, 1)
+            ((offset + np.linspace(1, idx_end, search_num))).astype(int).reshape(-1, 1)
         )
         # Select the length of the interval
         t_params[:, :, 1] = t_params[:, :, 1] * 0.5 * search_len
