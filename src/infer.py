@@ -58,6 +58,8 @@ def run(config):
             prepare_nn_dataset = prepare_local_predict_dataset
         case "LSTM_MIONet_Static":
             prepare_nn_dataset = prepare_local_predict_dataset
+        case "LSTM_DeepONet":
+            prepare_nn_dataset = prepare_local_predict_dataset
         case _:
             raise ValueError("Invalid architecture string.")
 

@@ -20,7 +20,13 @@ def add_train_args(parser: ArgumentParser):
         "--architecture",
         type=str,
         default=config["architecture"],
-        choices=["LSTM_MIONet", "LSTM_MIONet_Static", "DeepONet", "DeepONet_Local"],
+        choices=[
+            "LSTM_MIONet",
+            "LSTM_DeepONet",
+            "LSTM_MIONet_Static",
+            "DeepONet",
+            "DeepONet_Local",
+        ],
         help="Architecture to use.",
     )
     parser.add_argument(
@@ -203,7 +209,13 @@ def add_infer_args(parser: ArgumentParser):
         "--architecture",
         type=str,
         default=config["architecture"],
-        choices=["LSTM_MIONet", "LSTM_MIONet_Static", "DeepONet", "DeepONet_Local"],
+        choices=[
+            "LSTM_MIONet",
+            "LSTM_DeepONet",
+            "LSTM_MIONet_Static",
+            "DeepONet",
+            "DeepONet_Local",
+        ],
         help="Architecture to use.",
     )
     parser.add_argument(
