@@ -6,6 +6,7 @@ import torch
 from utils import torch_utils
 from models import architectures
 from optim.supervisor import execute_train, execute_test
+from optim.supervisor import replica_train_UQ_V2 as execute_train_reSGLD
 from utils.data_utils import (
     Dataset_Torch,
     Dataset_Stat,
@@ -14,9 +15,9 @@ from utils.data_utils import (
     scale_and_to_tensor,
     split_dataset,
 )
-from config import train_config, architecture_config
+from config import ensemble_config as ensemble
 from utils.args_parser import add_train_args, add_architecture_args, args_to_config
-import argparse, os
+import argparse, os, copy
 
 # Set current working directory
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -157,15 +158,37 @@ def run(config):
     # Step 8: train the model
     ###################################
 
-    execute_train(
-        config=config, model=model, dataset=train_data_torch, device=torch_utils.device
-    )
+    if config["use_ensemble"]:
+        execute_train_reSGLD(
+            model_exploit=model,
+            model_explore=copy.deepcopy(model),
+            dataset=train_data_torch,
+            train_params=config["train_params"],
+            replica_params=config["replica_params"],
+            exploit_params=config["exploit_params"],
+            explore_params=config["explore_params"],
+            device=torch_utils.device,
+        )
+    else:
+        execute_train(
+            config=config,
+            model=model,
+            dataset=train_data_torch,
+            device=torch_utils.device,
+        )
 
     ###################################
     # Step 9: test the model
     ###################################
-
-    execute_test(config=config, model=model, dataset=test_data_torch)
+    if config["use_ensemble"]:
+        execute_test(
+            config=config,
+            model=model,
+            dataset=test_data_torch,
+            device=torch_utils.device,
+        )
+    else:
+        execute_test(config=config, model=model, dataset=test_data_torch)
 
 
 def main():
@@ -176,6 +199,16 @@ def main():
 
     # Parse the arguments
     config = args_to_config(parser)
+
+    # Load the ensemble config
+    if config["use_ensemble"]:
+        ensemble_config = ensemble.get_config()
+        train_params = dict()
+        train_params["epochs"] = config["epochs"]
+        train_params["batch_size"] = config["batch_size"]
+        train_params["burn in"] = config["epochs"] - (ensemble_config["n_ensemble"] + 1)
+        ensemble_config["train_params"].update(train_params)
+        config.update(ensemble_config)
 
     # Create the checkpoint path
     os.makedirs(config["checkpoint_path"], exist_ok=True)

@@ -13,6 +13,7 @@ USE_SCHEDULER = True
 SCHEDULER_PATIENCE = 10
 SCHEDULER_FACTOR = 0.5
 LOSS_FUNCTION = "MSE"
+USE_ENSEMBLE = False
 
 ## Architecture options ##
 ARCHITECTURE = "LSTM_MIONet"
@@ -63,6 +64,7 @@ def get_config():
         "scheduler_patience": SCHEDULER_PATIENCE,
         "scheduler_factor": SCHEDULER_FACTOR,
         "loss_function": LOSS_FUNCTION,
+        "use_ensemble": USE_ENSEMBLE,
         "early_stopping_epochs": EARLY_STOPPING_EPOCHS,
         "save_model": SAVE_MODEL,
         "checkpoint_path": CHECKPOINT_PATH,

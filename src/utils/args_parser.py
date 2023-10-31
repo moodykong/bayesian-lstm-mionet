@@ -194,6 +194,12 @@ def add_train_args(parser: ArgumentParser):
         default=config["figure_path"],
         help="Path to save the figures.",
     )
+    parser.add_argument(
+        "--use_ensemble",
+        type=bool,
+        default=config["use_ensemble"],
+        help="Whether to use ensemble. Empty string means False. Otherwise, the value is True.",
+    )
     return parser
 
 
@@ -322,6 +328,12 @@ def add_infer_args(parser: ArgumentParser):
         default=config["device"],
         help="Device to use. Enter an integer to use a specific GPU ID. Enter 'parallel' to use all available GPUs. Enter 'cpu' to use CPU.",
         choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "parallel", "cpu"],
+    )
+    parser.add_argument(
+        "--use_ensemble",
+        type=bool,
+        default=config["use_ensemble"],
+        help="Whether to use ensemble. Empty string means False. Otherwise, the value is True.",
     )
     return parser
 
