@@ -354,7 +354,8 @@ def execute_test_recursive(config: dict, model: torch.nn, dataset: Any) -> list:
     t_next_list = []
     y_pred_list = dataset.x_n.reshape(config["search_num"], -1).T
     # Add the last output time step to the list
-    y_pred_last = dataset.x_next[[-1], :]
+    y_pred_last = dataset.x_next.reshape(config["search_num"], -1).T
+    y_pred_last = y_pred_last[:, [-1]]
     y_pred_list = torch.hstack((y_pred_list, y_pred_last))
     del y_pred_last
 
