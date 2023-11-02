@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--datafile_path",
+                "data/lorentz_N_5000_h001_T20.npy",
+                "--use_ensemble",
+                "True",
+                "--state_component",
+                "0",
+                "--search_len",
+                "2",
+                "--search_num",
+                "10",
+                "--batch_size",
+                "200",
+                "--epochs",
+                "400",
+                "--device",
+                "0"
+            ]
+        },
+        {
+            "name": "Python: infer_ensemble.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "justMyCode": true,
+            "args": [
+                "--datafile_path",
+                "data/lorentz_N_1_h001_T20.npy",
+                "--search_len",
+                "2",
+                "--search_num",
+                "10",
+                "--device",
+                "0",
+            ]
+        }
+    ]
+}

@@ -69,6 +69,59 @@ def plot_comparison(
         plt.show()
 
 
+def plot_comparison_UQ(
+    y_list: list,
+    y_std: Any,
+    legend_list: list,
+    xlim: list = None,
+    ylim: list = None,
+    xlabel: str = "Position $x$",
+    ylabel: str = "Target $f(x)$",
+    figsize: list = (14, 10),
+    color_list: list = None,
+    linestyle_list: list = None,
+    fig_path: str = None,
+    font_size: str = "20",
+) -> None:
+    plt.rcParams["font.size"] = font_size
+    plt.figure()
+
+    for y_i, legend_i, c_i, ls_i in zip(
+        y_list, legend_list, color_list, linestyle_list
+    ):
+        plt.plot(
+            y_i.reshape(
+                -1,
+            ),
+            lw=2.0,
+            color=c_i,
+            linestyle=ls_i,
+            label=legend_i,
+        )
+
+    if ylim is not None:
+        plt.ylim(ylim)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+    t = np.arange(y_list[0].shape[0])
+    plt.fill(
+        np.concatenate([t, t[::-1]]),
+        np.concatenate(
+            [y_list[1] - 1.9600 * y_std, (y_list[1] + 1.9600 * y_std)[::-1]]
+        ),
+        alpha=0.8,
+        fc="g",
+        ec="None",
+        label="0.95 confidence interval",
+    )
+    plt.legend(prop={"size": font_size})
+    if fig_path is not None:
+        plt.savefig(fig_path, bbox_inches="tight", dpi=300)
+    else:
+        plt.show()
+
+
 # initialize nn parameters
 def init_params(net: torch.nn) -> list:
     list_pars = []

@@ -329,12 +329,7 @@ def add_infer_args(parser: ArgumentParser):
         help="Device to use. Enter an integer to use a specific GPU ID. Enter 'parallel' to use all available GPUs. Enter 'cpu' to use CPU.",
         choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "parallel", "cpu"],
     )
-    parser.add_argument(
-        "--use_ensemble",
-        type=bool,
-        default=config["use_ensemble"],
-        help="Whether to use ensemble. Empty string means False. Otherwise, the value is True.",
-    )
+
     return parser
 
 

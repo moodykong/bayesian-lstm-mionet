@@ -3,7 +3,7 @@ import numpy as np
 ###################################
 # Define training parameters
 ###################################
-n_ensemble = 400
+n_ensemble = 400 - 40
 train_params = dict()
 train_params["use grad norm"] = True
 train_params["grad norm"] = 0.5e2
@@ -12,7 +12,7 @@ train_params["print every"] = 1
 ###################################
 # Define model exploit parameters
 ###################################
-level = 2.0
+level = 15.0
 v_exploit = 0.1
 
 eta = 1e-4
