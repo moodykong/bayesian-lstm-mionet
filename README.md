@@ -12,9 +12,9 @@ Alternatively, local environment tool like pip or conda can be used to set up th
 
 ## How to train and test the model
 
-I provide three notebooks for the workflow of Lorentz, pendulum, and Ausgrid dataset under `./src` . 
+**_I provide three notebooks for the workflow of Lorentz, pendulum, and Ausgrid dataset under `./src` ._**
 
-Please refer to these notebooks for data generation, model training and inferring. 
+**_Please refer to these notebooks for data generation, model training and inferring._** 
 
 ## Data source
 
