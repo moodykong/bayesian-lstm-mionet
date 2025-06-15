@@ -20,7 +20,7 @@ Please refer to these notebooks for data generation, model training and inferrin
 
 The pendulum and Lorentz data are generated from math formulas, so no additional data file is needed.
 
-The Ausgrid data zip file is provided at [link](https://purdue0-my.sharepoint.com/:f:/g/personal/kong89_purdue_edu/EpzjocRBrE1Pgqi8CAdwL3ABWlN0nKbfFew7-jML6UOJvA?e=GUgUYn).
+The Ausgrid data zip file is provided at [link](https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz).
 
 The Ausgrid problem requires raw data files in the locations below:
 
@@ -32,6 +32,6 @@ The Ausgrid problem requires raw data files in the locations below:
 
 The mlflow tracking uri is set as `src/mlruns`.
 
-To retrieve trained models and inspect the training process and arguments, refer to [link](https://purdue0-my.sharepoint.com/:f:/g/personal/kong89_purdue_edu/EpzjocRBrE1Pgqi8CAdwL3ABWlN0nKbfFew7-jML6UOJvA?e=GUgUYn).
+To retrieve trained models and inspect the training process and arguments, refer to [link](https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz).
 
 Unzip the file then move the mlruns to `src/mlruns`.
