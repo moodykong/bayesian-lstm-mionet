@@ -1,5 +1,11 @@
 # LSTM-MIONet
 
+## Notebook
+
+**_I provide three notebooks for the workflow of Lorentz, pendulum, and Ausgrid dataset under `./src` ._**
+
+**_Please refer to these notebooks for data generation, model training and inferring._** 
+
 ## How to set up the environment
 
 The recommended environment tool for this repo is the **devcontainer** extension of **Microsoft VS Code**.
@@ -9,12 +15,6 @@ The configuration file of devcontainer is in `./.devcontainer` .
 Docker engine is required to run this container.
 
 Alternatively, local environment tool like pip or conda can be used to set up the environment, and the dependencies are available at `./requirements.txt` .
-
-## How to train and test the model
-
-**_I provide three notebooks for the workflow of Lorentz, pendulum, and Ausgrid dataset under `./src` ._**
-
-**_Please refer to these notebooks for data generation, model training and inferring._** 
 
 ## Data source
 
