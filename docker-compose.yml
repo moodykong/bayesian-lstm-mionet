@@ -17,10 +17,11 @@ services:
     volumes:
       - .:/LSTM-MIONet:cached
     
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 2
-              capabilities: [gpu]
+    # Uncomment this to enable GPU support if you have a GPU machine.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 2
+    #           capabilities: [gpu]
