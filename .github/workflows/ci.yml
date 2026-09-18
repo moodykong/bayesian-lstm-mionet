@@ -1,0 +1,58 @@
+# Continuous integration for the B-LSTM-MIONet code release.
+#
+# The environment is fully described by pyproject.toml + uv.lock, so every step
+# goes through uv: `uv sync --extra cpu` installs the CPU PyTorch wheel (torch
+# is an extra: cpu / cu126 / cu130) together with the default `dev` dependency
+# group that provides pytest, ruff and black.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch (or pull request) cancels the run that is
+# still in flight; only the newest commit is worth testing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    env:
+      # MLflow prints an agent hint on import; the tests are head-less and log
+      # into a temporary file store.
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+      MPLBACKEND: Agg
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install the project and its CPU dependencies
+        run: uv sync --extra cpu --python ${{ matrix.python-version }}
+
+      - name: Lint (ruff)
+        run: uv run ruff check src tests
+
+      - name: Format check (black)
+        run: uv run black --check src tests configs
+
+      - name: Test (pytest)
+        run: uv run pytest --durations=10
