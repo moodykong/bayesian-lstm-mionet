@@ -1,0 +1,38 @@
+# Replica exchange SGLD (reSGLD) for the pendulum experiment.
+#
+#   blstm-mionet train --config configs/pendulum.yaml \
+#                      --bayesian configs/bayesian/pendulum.yaml
+#
+# Two Langevin chains are trained side by side.  The "exploit" chain runs at a
+# low temperature (small tau -> small injected noise) and refines the mode it
+# has found; the "explore" chain runs at twice that temperature and roams the
+# parameter space.  After every epoch the two chains swap their parameters with
+# probability min(1, exchange_rate).  Once the burn-in
+# (epochs - (n_ensemble + 1)) is over, the exploit chain is sampled once per
+# epoch to build the posterior ensemble.
+bayesian:
+  # Members are collected once per epoch after a burn-in of
+  # training.epochs - (n_ensemble + 1).  The paper's reSGLD runs used
+  # `--epochs 400` (40 burn-in epochs + 360 members) and evaluate M = 300 of
+  # them; with the Adam default of 1000 epochs the burn-in becomes 639.
+  n_ensemble: 360
+  use_grad_norm: true
+  grad_norm: 50.0 # clip_grad_value_ threshold (0.5e2)
+  print_every: 1
+  level: 15.0 # both chains divide loss and gradients by sigma = 2 * level^2
+
+  exploit: # low temperature chain
+    tau: 1.0e-7
+    eta: 1.0e-4 # step size
+    alpha: 0.1 # friction
+    v: 0.1 # enters beta = 0.5 * v * eta and the noise scale
+
+  explore: # high temperature chain (tau is twice the exploit value)
+    tau: 2.0e-7
+    eta: 1.0e-4
+    alpha: 0.1
+    v: 0.1
+
+  replica:
+    sigma_uniform: 1.0 # sigma of the uniform correction in the swap criterion
+    f_adj: 90000000.0 # F adjustment damping the swap rate

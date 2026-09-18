@@ -1,0 +1,107 @@
+# Ausgrid solar home gross generation (paper Sec. 4.3).
+#
+# The Ausgrid CSV files are licensed data and are NOT shipped with this
+# repository: download "Solar home half-hour data" from Ausgrid and point
+# data.ausgrid.csv_paths at the extracted CSV files.  All paths are relative to
+# the directory the command is run from.
+name: ausgrid
+
+data:
+  system: ausgrid
+  ausgrid:
+    csv_paths:
+      - "data/Ausgrid/Solar home half-hour data - 1 July 2010 to 30 June 2011/2010-2011 Solar home electricity data.csv"
+      - "data/Ausgrid/Solar home half-hour data - 1 July 2011 to 30 June 2012/2011-2012 Solar home electricity data v2.csv"
+      - "data/Ausgrid/Solar home half-hour data - 1 July 2012 to 30 June 2013/2012-2013 Solar home electricity data v2.csv"
+    # Training group; the paper tests on customers 51-60 and 61-70.
+    customer_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                  31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                  41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+    start_date: "2010-07-01"
+    end_date: "2011-06-30"
+    category: GG # gross PV generation
+    delta_t_idxs: 0.1 # 0.1 * 0.5 h = 0.05 h spacing after interpolation
+    column_start: 18 # 9 am ...
+    column_end: 39 # ... to 7 pm (21 half-hour columns)
+    min_nonzero_fraction: 0.8
+    sample_interval_hours: 0.5
+  output: data/ausgrid_cust_1-50.npy
+  seed: 999
+  verbose: true
+
+model:
+  architecture: LSTM_MIONet # LSTM_MIONet | LSTM_DeepONet | DeepONet | DeepONet_Local
+  branch_state:
+    width: 200
+    depth: 3
+    activation: relu
+  branch_memory:
+    width: 200
+    depth: 3
+    activation: relu
+    lstm_size: 100
+    lstm_layer_num: 2
+  trunk:
+    width: 200
+    depth: 3
+    activation: relu
+  use_bias: true
+
+training:
+  datafile: data/ausgrid_cust_1-50.npy
+  state_component: 0
+  search_len: 10 # h_max = 0.5 (hours) = 10 interpolated steps
+  search_num: 5 # each daily profile replicated 5 times (the demo notebook uses 10)
+  search_random: true
+  offset: 0.0
+  t_max: null
+  scale_mode: "" # "" | normalize | min-max
+  holdout_size: 0.1
+  validation_split: 0.2
+  learning_rate: 0.001
+  batch_size: 200
+  epochs: 1000
+  validate_freq: 1
+  use_scheduler: true
+  scheduler_patience: 10
+  scheduler_factor: 0.5
+  loss_function: MSE
+  early_stopping_epochs: 80
+  monitor_metric: val_loss
+  save_model: true
+  registered_model_name: Ausgrid
+  resume_model: null
+  plot_trajs: true
+  plot_idxs: [0]
+  figure_dir: figures
+  device: parallel # GPU index, "parallel" or "cpu"; falls back to CPU without CUDA
+  experiment_name: Ausgrid
+  run_name: lstm_mionet_ausgrid
+  verbose: true
+
+inference:
+  datafile: data/ausgrid_cust_51-60.npy
+  model: models:/Ausgrid/latest # or runs:/<run id>/model
+  run: "" # reSGLD run holding an ensemble, for infer-bayesian
+  recursive: false
+  teacher_forcing_prob: 1.0
+  autonomous: true
+  state_component: 0
+  search_len: 10
+  search_num: 200
+  search_random: false
+  offset: 0.0
+  t_max: null
+  scale_mode: ""
+  batch_size: 100
+  n_ensemble: 300 # M = 300 posterior samples are used in the paper
+  plot_trajs: true
+  plot_idxs: [0]
+  figure_dir: figures
+  device: 0
+  verbose: true
+
+tracking:
+  uri: mlruns # overridden by MLFLOW_TRACKING_URI

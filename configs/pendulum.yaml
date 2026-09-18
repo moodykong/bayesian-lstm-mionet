@@ -1,0 +1,95 @@
+# Non-autonomous pendulum swing-up driven by a Gaussian random field (paper Sec. 4.2).
+#
+# Paths are relative to the directory the command is run from.
+name: pendulum
+
+data:
+  system: pendulum
+  t_max: 10.0 # T = 10 (s)
+  step_size: 0.01 # fixed RK-4 step size Delta = 0.01 (s)
+  n_sample: 5000 # 5000 initial values and 5000 control functions
+  x_init_pts: # X0 = {theta in [-pi, pi], theta_dot in [-8, 8]}
+    - [-3.141592653589793, 3.141592653589793]
+    - [-8.0, 8.0]
+  control: gaussian # "gaussian" (u ~ GRF) or "designate" (u = sin(t / 2))
+  grf:
+    a: 0.01 # RBF kernel length l = 0.01
+    nu: 1.0
+  output: data/pendulum_ctr_grf_N_5000_h001_T10.npy
+  seed: 999
+  verbose: true
+
+model:
+  architecture: LSTM_MIONet # LSTM_MIONet | LSTM_DeepONet | DeepONet | DeepONet_Local
+  branch_state:
+    width: 200
+    depth: 3
+    activation: relu
+  branch_memory:
+    width: 200
+    depth: 3
+    activation: relu
+    lstm_size: 100
+    lstm_layer_num: 2
+  trunk:
+    width: 200
+    depth: 3
+    activation: relu
+  use_bias: true
+
+training:
+  datafile: data/pendulum_ctr_grf_N_5000_h001_T10.npy
+  state_component: 0 # 0 = theta(t), 1 = theta_dot(t)
+  search_len: 2 # h_max = 0.02 (s) = 2 steps
+  search_num: 10 # u replicated 10 times -> N_train = 50000
+  search_random: true
+  offset: 0.0
+  t_max: null
+  scale_mode: "" # "" | normalize | min-max
+  holdout_size: 0.1
+  validation_split: 0.2
+  learning_rate: 0.001
+  batch_size: 200
+  epochs: 1000
+  validate_freq: 1
+  use_scheduler: true
+  scheduler_patience: 10
+  scheduler_factor: 0.5
+  loss_function: MSE
+  early_stopping_epochs: 80
+  monitor_metric: val_loss
+  save_model: true
+  registered_model_name: pendulum
+  resume_model: null
+  plot_trajs: true
+  plot_idxs: [0]
+  figure_dir: figures
+  device: parallel # GPU index, "parallel" or "cpu"; falls back to CPU without CUDA
+  experiment_name: pendulum
+  run_name: lstm_mionet_pendulum
+  verbose: true
+
+inference:
+  datafile: data/pendulum_ctr_grf_N_100_h001_T10.npy
+  model: models:/pendulum/latest # or runs:/<run id>/model
+  run: "" # reSGLD run holding an ensemble, for infer-bayesian
+  recursive: false
+  teacher_forcing_prob: 1.0
+  autonomous: false # the control is given, so it is not rebuilt from predictions
+  state_component: 0
+  search_len: 2
+  search_num: 200 # each control replicated 200 times
+  search_random: false
+  offset: 0.0
+  t_max: null
+  scale_mode: ""
+  batch_size: 100
+  n_ensemble: 300 # M = 300 posterior samples are used in the paper
+  plot_trajs: true
+  plot_idxs: [0]
+  figure_dir: figures
+  device: 0
+  verbose: true
+
+tracking:
+  uri: mlruns # overridden by MLFLOW_TRACKING_URI
