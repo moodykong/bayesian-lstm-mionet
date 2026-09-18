@@ -1,0 +1,11 @@
+# SHA-256 checksums of the release archive fetched by scripts/download_data.sh.
+#
+# This file ships empty on purpose.  Once the Ausgrid selection and the mlruns
+# store are published under a stable, directly downloadable URL (Zenodo or a
+# GitHub release asset), the maintainer fills it in with
+#
+#     cd <the unpacked archive> && find . -type f -print0 | xargs -0 sha256sum > scripts/checksums.sha256
+#
+# and re-adds this comment header.  download_data.sh verifies every line it
+# finds here ("sha256sum --check --ignore-missing", run from the root of the
+# unpacked archive) and skips verification while no checksum is listed.
