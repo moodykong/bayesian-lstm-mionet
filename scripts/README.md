@@ -49,7 +49,8 @@ capture that id and evaluate `runs:/<id>/model`, so a run never picks up a
 stale `models:/<name>/latest`.  The registered name of the configuration
 (`lorentz`, `pendulum`, `Ausgrid`) is printed in the final summary of a full
 run.  Runs land in `./mlruns`; browse them with
-`mlflow ui --backend-store-uri ./mlruns`.
+`MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri ./mlruns` (MLflow 3
+refuses a file store without that variable).
 
 ## The scripts
 
@@ -87,13 +88,13 @@ useless as a result.  Figures land in
 `ausgrid`) is the B-LSTM-MIONet half of the paper.  It reuses the datasets
 written by the matching `reproduce_SYSTEM.sh` (generating them only if they are
 missing), trains two replica-exchange Langevin chains with
-`configs/bayesian/SYSTEM.yaml` for 400 epochs -- 39 burn-in epochs followed by
+`configs/bayesian/SYSTEM.yaml` for 400 epochs -- 40 burn-in epochs followed by
 360 collected posterior samples -- and then runs `blstm-mionet infer-bayesian`,
 which evaluates the `M = 300` members named by `inference.n_ensemble` and
 prints the PICP of the 95% credible interval; the script repeats that PICP line
-in its summary.  Note that a full Bayesian run also registers its exploit chain
-under the same model name as the deterministic run (`models:/lorentz`, ...),
-which the summary points out.
+in its summary.  A full Bayesian run registers its best exploit-chain snapshot
+as `models:/<name>-bayesian` (for example `lorentz-bayesian`), so the Adam model
+under `models:/<name>/latest` is left untouched.
 
 **`smoke_test.sh`** is the fast sanity check: it creates a temporary directory
 (removed by a trap on exit), runs `reproduce_lorentz.sh --quick`,
@@ -126,20 +127,20 @@ the synthetic Ausgrid CSV writer.
 
 ## Runtimes
 
-| command | measured here (CPU) | paper scale |
+| command | measured (CPU only) | paper scale |
 | --- | --- | --- |
 | `reproduce_lorentz.sh --quick` | 55 s | -- |
 | `reproduce_pendulum.sh --quick` | 44 s | -- |
 | `reproduce_ausgrid.sh --quick` | 41 s | -- |
 | `reproduce_bayesian.sh lorentz --quick` | 30 s | -- |
 | `smoke_test.sh` (the three in parallel) | 55 s | -- |
-| `reproduce_lorentz.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_pendulum.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_ausgrid.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_bayesian.sh SYSTEM` | -- | hours on one GPU, not measured here |
+| `reproduce_lorentz.sh` | -- | hours on one GPU |
+| `reproduce_pendulum.sh` | -- | hours on one GPU |
+| `reproduce_ausgrid.sh` | -- | hours on one GPU |
+| `reproduce_bayesian.sh SYSTEM` | -- | hours on one GPU |
 
 The quick numbers were measured on a 20 core CPU-only machine (torch 2.14, no
-CUDA) that was busy with other work, so they are upper bounds; they are
+CUDA) under other load, so they are upper bounds; they are
 dominated by interpreter start-up, MLflow model logging and -- for the pendulum
 -- the 2000 x 2000 Cholesky factorisation behind every Gaussian random field
 control, not by the training itself.  Running three pipelines at once only pays
@@ -147,6 +148,6 @@ off when each of them is kept from grabbing every core, which is why
 `smoke_test.sh` caps `OMP_NUM_THREADS`/`MKL_NUM_THREADS` at a third of the
 cores; without that cap the same three pipelines took five times longer here.
 
-The full pipelines were not run in this environment: they need a GPU,
-5000 trajectory datasets and up to 1000 Adam epochs (400 reSGLD epochs with two
-chains each), which is hours per experiment.
+The paper-scale pipelines need a GPU, 5000 trajectory datasets and up to 1000
+Adam epochs (400 reSGLD epochs with two chains each), which is hours per
+experiment; they are not part of CI.

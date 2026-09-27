@@ -125,7 +125,7 @@ printf 'Pendulum pipeline finished in %s (mm:ss).\n' "$(elapsed)"
 hr
 note "MLflow run          : $RUN_URI"
 note "Model used for infer: $MODEL_URI"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/pendulum_train.log"
 note "Figures             : $PWD/$FIGURES/{train,test_grf,test_designate}"
 if [[ $QUICK -eq 1 ]]; then

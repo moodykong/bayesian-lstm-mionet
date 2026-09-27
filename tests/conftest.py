@@ -67,8 +67,9 @@ TINY_N_TIME = int(TINY_T_MAX / TINY_STEP) - 1
 LORENTZ_INIT_PTS = [[-17.0, 20.0], [-23.0, 28.0], [0.0, 50.0]]
 PENDULUM_INIT_PTS = [[-np.pi, np.pi], [-8.0, 8.0]]
 
-#: Half-hour column labels of the Ausgrid "solar home" files.
-HALF_HOUR_COLUMNS = [f"{hour}:{minute:02d}" for hour in range(24) for minute in (0, 30)]
+#: Half-hour column labels of the Ausgrid "solar home" files: each reading is
+#: labelled with the end of its half hour, "0:30", "1:00", ..., "23:30", "0:00".
+HALF_HOUR_COLUMNS = [f"{(k + 1) // 2 % 24}:{30 * ((k + 1) % 2):02d}" for k in range(48)]
 
 
 def pytest_configure(config: pytest.Config) -> None:

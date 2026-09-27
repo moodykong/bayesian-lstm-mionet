@@ -132,7 +132,7 @@ printf 'Lorenz pipeline finished in %s (mm:ss).\n' "$(elapsed)"
 hr
 note "MLflow run          : $RUN_URI"
 note "Model used for infer: $MODEL_URI"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/lorentz_train.log"
 note "Figures             : $PWD/$FIGURES/{train,test,recursive_tf10,recursive_tf05,recursive_tf00}"
 if [[ $QUICK -eq 1 ]]; then

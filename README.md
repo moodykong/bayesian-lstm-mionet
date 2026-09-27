@@ -212,8 +212,8 @@ which uses `u = sin(t/2)`. Hours on one GPU.
 ### Ausgrid PV generation (Sec. 4.3)
 
 [`configs/ausgrid.yaml`](configs/ausgrid.yaml), [`scripts/reproduce_ausgrid.sh`](scripts/reproduce_ausgrid.sh).
-Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, half-hour
-columns 18-39 (9 am to 7 pm), interpolated to `h = 0.05 hours`; `search_len: 10` gives
+Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, the 21
+half-hour readings from 07:00 to 17:00 (CSV columns 18-38), interpolated to `h = 0.05 hours`; `search_len: 10` gives
 `h_max = 0.5 hours` and `search_num: 5` gives `N_train = 91500` daily sub-sequences. Testing uses
 customers 51-60 and 61-70. Needs the licensed CSV files, see below. Hours on one GPU.
 
@@ -227,6 +227,12 @@ paper evaluates M = 300 of them. Evaluate with `infer-bayesian --run runs:/<run 
 [`scripts/reproduce_bayesian.sh`](scripts/reproduce_bayesian.sh) `{lorentz|pendulum|ausgrid}`.
 A reSGLD run registers its best exploit-chain snapshot under `<registered_model_name>-bayesian`
 (for example `lorentz-bayesian`), so `models:/lorentz/latest` keeps pointing at the Adam model.
+
+Two fixes since the paper change Bayesian results: the Langevin noise is now drawn independently
+for every parameter entry (the research code used one scalar per tensor), and the posterior
+predictive sample uses the ensemble standard deviation. A rerun therefore will not reproduce the
+published ensembles bit for bit; the deterministic LSTM-MIONet path is unchanged. See
+[CHANGELOG.md](CHANGELOG.md).
 
 ### Pretrained models and data
 
@@ -331,7 +337,8 @@ uv run black --check src tests
 uv run pre-commit install
 ```
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Notable changes, including
+the ones that alter results relative to the paper's code, are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Citation
 

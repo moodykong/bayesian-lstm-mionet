@@ -200,7 +200,7 @@ hr
 note "${PICP_LINE:-PICP line not found in $INFER_LOG}"
 note "MLflow run          : $RUN_URI"
 note "Ensemble artifacts  : $RUN_URI/ensemble  (member_XXXX.pt)"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/bayesian_${SYSTEM}_train.log"
 note "Inference log       : $PWD/$INFER_LOG"
 note "Figures             : $PWD/$FIGURES/{train,uq}"

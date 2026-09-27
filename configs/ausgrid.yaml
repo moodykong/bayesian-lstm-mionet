@@ -23,8 +23,10 @@ data:
     end_date: "2011-06-30"
     category: GG # gross PV generation
     delta_t_idxs: 0.1 # 0.1 * 0.5 h = 0.05 h spacing after interpolation
-    column_start: 18 # 9 am ...
-    column_end: 39 # ... to 7 pm (21 half-hour columns)
+    # CSV columns [18, 39): after the five metadata columns, the 21 half-hour
+    # readings labelled 07:00 ... 17:00 (the daylight hours for "GG").
+    column_start: 18
+    column_end: 39
     min_nonzero_fraction: 0.8
     sample_interval_hours: 0.5
   output: data/ausgrid_cust_1-50.npy
