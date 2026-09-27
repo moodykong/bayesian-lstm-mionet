@@ -32,7 +32,7 @@ The numbers it prints are meaningless as science; they only prove the pipeline
 runs.  Without `--quick` the scripts run the paper configuration and default to
 `--device 0`.
 
-**`--device DEVICE`.** A GPU index, `parallel` (all visible GPUs) or `cpu`.
+**`--device DEVICE`.** A GPU index or `cpu`.
 Defaults to `0` for full runs and `cpu` in quick mode.
 
 **`--workdir DIR`.** All paths inside `configs/*.yaml` are relative to the

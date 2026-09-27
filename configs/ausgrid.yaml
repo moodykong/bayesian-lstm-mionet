@@ -76,7 +76,7 @@ training:
   plot_trajs: true
   plot_idxs: [0]
   figure_dir: figures
-  device: parallel # GPU index, "parallel" or "cpu"; falls back to CPU without CUDA
+  device: 0 # GPU index or "cpu"; falls back to CPU without CUDA
   experiment_name: Ausgrid
   run_name: lstm_mionet_ausgrid
   verbose: true

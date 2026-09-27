@@ -41,7 +41,7 @@ usage() {
     cat <<'EOF'
 Options:
   --quick            tiny CPU settings, well under a minute end to end
-  --device DEVICE    GPU index, "parallel" or "cpu" (default: 0, cpu with --quick)
+  --device DEVICE    GPU index or "cpu" (default: 0, cpu with --quick)
   --workdir DIR      run inside DIR instead of the repository root
   -h, --help         show this message
   ...                every other argument is forwarded to `blstm-mionet train`

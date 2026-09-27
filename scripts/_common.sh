@@ -128,7 +128,7 @@ common_parse_args() {
             shift
             ;;
         --device)
-            [[ $# -ge 2 ]] || die "--device needs a value (a GPU index, 'parallel' or 'cpu')"
+            [[ $# -ge 2 ]] || die "--device needs a value (a GPU index or 'cpu')"
             DEVICE="$2"
             shift 2
             ;;
