@@ -11,6 +11,7 @@ from blstm_mionet.cli import CONFIG_EPILOG, DESCRIPTION
 from blstm_mionet.cli import generate as generate_cmd
 from blstm_mionet.cli import infer as infer_cmd
 from blstm_mionet.cli import infer_bayesian as infer_bayesian_cmd
+from blstm_mionet.cli import relocate as relocate_cmd
 from blstm_mionet.cli import train as train_cmd
 from blstm_mionet.config import ConfigError
 
@@ -19,6 +20,7 @@ COMMANDS = (
     ("train", train_cmd),
     ("infer", infer_cmd),
     ("infer-bayesian", infer_bayesian_cmd),
+    ("relocate-mlruns", relocate_cmd),
 )
 
 
@@ -39,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
             name,
             help=module.HELP,
             description=module.HELP[0].upper() + module.HELP[1:] + ".",
-            epilog=CONFIG_EPILOG,
+            epilog=getattr(module, "EPILOG", CONFIG_EPILOG),
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
         module.add_arguments(subparser)

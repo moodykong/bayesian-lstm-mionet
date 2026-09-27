@@ -22,6 +22,13 @@
 
 ### Fixed
 
+- **The published pretrained models did not load.** The archived `mlruns` store was written by
+  the research code, which pickled its models against `models.architectures` and recorded
+  absolute paths under the machine it ran on. `load_model` now maps those pickles onto the
+  classes of this package, and the new `blstm-mionet relocate-mlruns` command points a moved store
+  at its new location. `tests/test_legacy_models.py` writes such a store with a frozen copy of the
+  research code's classes, moves it, and checks that the predictions are unchanged; the same
+  check passed on a store written with MLflow 2.8.
 - `LSTM_MLP` takes the length of a zero-padded history from the position of its last non-zero
   step instead of counting non-zero entries, so an exact zero *inside* a history no longer drops
   the most recent samples. Histories without interior zeros are encoded exactly as before, so

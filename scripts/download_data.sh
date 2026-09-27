@@ -308,7 +308,9 @@ print_expected_layout
 
 printf '\n'
 if [[ $COPIED_MLRUNS -eq 1 && $DRY_RUN -eq 0 ]]; then
-    note "The pretrained models are now usable, for example:"
+    note "The runs were written on another machine and MLflow stores absolute paths,"
+    note "so point the store at its new location once, then use the pretrained models:"
+    note "  blstm-mionet relocate-mlruns $MLRUNS_DEST"
     note "  blstm-mionet infer --config configs/lorentz.yaml --model models:/lorentz/latest"
     note "  (set MLFLOW_TRACKING_URI=$MLRUNS_DEST when running from another directory)"
 fi

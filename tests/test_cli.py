@@ -38,7 +38,7 @@ def test_root_help_lists_every_command(capsys) -> None:
         main(["--help"])
     assert excinfo.value.code == 0
     printed = capsys.readouterr().out
-    for command in ("generate", "train", "infer", "infer-bayesian"):
+    for command in ("generate", "train", "infer", "infer-bayesian", "relocate-mlruns"):
         assert command in printed
     assert "B-LSTM-MIONet" in printed
     assert "--set" in printed

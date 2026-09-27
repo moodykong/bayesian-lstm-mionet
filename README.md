@@ -228,7 +228,9 @@ below. Hours on one GPU.
 The paper describes columns 18-38 as "9 am to 7 pm", counting from midnight. In the Ausgrid files
 the 48 half-hour readings follow five metadata columns (`Customer`, `Generator Capacity`,
 `Postcode`, `Consumption Category`, `date`), so these columns hold the readings labelled 07:00 to
-17:00. The code keeps the column window of the research code; only the description differs.
+17:00. The real data agree: the 1 July 2010 profiles of Figure 8 peak around `t = 4-5.5 h`, i.e.
+at solar noon in Sydney, and are close to zero at both ends of the window. The code keeps the
+column window of the research code; only the description differs.
 
 ### Bayesian ensembles (Sec. 3.5)
 
@@ -256,13 +258,20 @@ registered models `lorentz`, `pendulum` and `Ausgrid`:
 [`scripts/download_data.sh`](scripts/download_data.sh) is the scripted entry point.
 
 Unpack `mlruns` at the repository root (or leave it anywhere and point `MLFLOW_TRACKING_URI` at it —
-the environment variable wins over `tracking.uri` in the YAML). Registered-model URIs then work
-directly:
+the environment variable wins over `tracking.uri` in the YAML), then run `relocate-mlruns` once.
+MLflow records absolute paths in the store, and these runs were written on another machine; the
+command points them at the store's new location and is safe to repeat. Registered-model URIs then
+work directly:
 
 ```bash
+uv run blstm-mionet relocate-mlruns mlruns
 uv run blstm-mionet infer --config configs/lorentz.yaml \
     --data data/lorentz_N_100_h001_T20.npy --model models:/lorentz/latest --device cpu
 ```
+
+The archived models were pickled by the research code, whose classes lived in
+`models.architectures`; `blstm-mionet` loads them into the equivalent classes of this package
+(`tests/test_legacy_models.py` checks that the predictions are unchanged).
 
 The Ausgrid CSV files are licensed by Ausgrid and are not redistributed here; the original source is
 [Solar home electricity data](https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data).
@@ -302,7 +311,7 @@ the working directory.
 
 ```
 src/blstm_mionet/
-  cli/            generate | train | infer | infer-bayesian sub-commands
+  cli/            generate | train | infer | infer-bayesian | relocate-mlruns sub-commands
   config.py       typed dataclasses, YAML loading and --set overrides
   data/           systems.py (vector fields), generate.py (RK-4), masking.py,
                   datasets.py (torch wrappers), ausgrid.py (CSV selection)

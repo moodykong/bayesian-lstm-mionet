@@ -117,7 +117,9 @@ Zenodo or GitHub release link that curl can follow) it unpacks the archive into
 a temporary directory, verifies SHA-256 checksums when `scripts/checksums.sha256`
 lists any, merges the Ausgrid folders into `data/Ausgrid/` and the run store
 into `./mlruns` without ever replacing or deleting existing files, and reports
-what landed where.  It needs no Python environment.
+what landed where.  It needs no Python environment.  Afterwards run
+`blstm-mionet relocate-mlruns mlruns` once: MLflow stores absolute paths, and
+the archived runs were written on another machine.
 
 **`checksums.sha256`** ships empty on purpose; the maintainer fills it in once
 the archive has a stable published URL.  **`_common.sh`** is not a user facing

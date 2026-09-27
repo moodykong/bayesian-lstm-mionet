@@ -3,14 +3,24 @@
 The tracking URI comes from the ``tracking.uri`` configuration key and is
 overridden by the ``MLFLOW_TRACKING_URI`` environment variable.  Relative URIs
 (the default ``mlruns``) are resolved against the current working directory.
+
+Two helpers keep the models trained with the research code usable: pickles that
+reference its module layout (``models.architectures``) are loaded into the
+classes of this package, and :func:`relocate_file_store` rewrites the absolute
+paths an MLflow file store records, so a store can be moved to another machine.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import types
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -156,12 +166,140 @@ def load_model(uri: str, device: torch.device) -> torch.nn.Module:
 
     Handles ``models:/<name>/latest``, ``models:/<model id>`` and
     ``runs:/<run id>/<artifact path>``; models saved through
-    ``torch.nn.DataParallel`` are unwrapped.
+    ``torch.nn.DataParallel`` are unwrapped.  Models pickled by the research
+    code, which referenced ``models.architectures.LSTM_MIONet`` and friends,
+    are loaded into the equivalent classes of this package.
     """
-    model = mlflow.pytorch.load_model(uri, map_location=device)
+    try:
+        model = mlflow.pytorch.load_model(uri, map_location=device)
+    except ModuleNotFoundError as exc:
+        if exc.name not in LEGACY_MODULE_NAMES:
+            raise
+        with _legacy_module_aliases():
+            model = mlflow.pytorch.load_model(uri, map_location=device)
     if isinstance(model, torch.nn.DataParallel):
         model = model.module
     return model.to(device)
+
+
+#: Modules the research code pickled its models from (it ran from ``src/``).
+LEGACY_MODULE_NAMES = ("models", "models.architectures", "utils", "utils.torch_utils")
+
+
+def _legacy_modules() -> dict[str, types.ModuleType]:
+    """Stand-ins for the research code's modules, backed by this package."""
+    from blstm_mionet.models import (
+        LSTM_MLP,
+        MLP,
+        DeepONet,
+        DeepONet_Local,
+        LSTM_DeepONet,
+        LSTM_MIONet,
+        ReLUSin,
+        Sin,
+        get_activation,
+    )
+
+    architectures = types.ModuleType("models.architectures")
+    for obj in (
+        LSTM_MIONet,
+        LSTM_DeepONet,
+        DeepONet,
+        DeepONet_Local,
+        MLP,
+        LSTM_MLP,
+        get_activation,
+    ):
+        setattr(architectures, obj.__name__, obj)
+    torch_utils = types.ModuleType("utils.torch_utils")
+    torch_utils.sin_act = Sin
+    torch_utils.Rsin = ReLUSin
+
+    models = types.ModuleType("models")
+    models.__path__ = []
+    models.architectures = architectures
+    utils = types.ModuleType("utils")
+    utils.__path__ = []
+    utils.torch_utils = torch_utils
+    return {
+        "models": models,
+        "models.architectures": architectures,
+        "utils": utils,
+        "utils.torch_utils": torch_utils,
+    }
+
+
+@contextmanager
+def _legacy_module_aliases() -> Iterator[None]:
+    """Register the stand-in modules for the duration of one load."""
+    added = []
+    for name, module in _legacy_modules().items():
+        if name not in sys.modules:
+            sys.modules[name] = module
+            added.append(name)
+    try:
+        yield
+    finally:
+        for name in added:
+            sys.modules.pop(name, None)
+
+
+#: ``meta.yaml`` keys under which an MLflow file store records absolute paths.
+_PATH_KEYS = ("artifact_location", "artifact_uri", "storage_location", "source")
+_PATH_LINE = re.compile(
+    r"^(?P<key>" + "|".join(_PATH_KEYS) + r"): (?P<quote>['\"]?)"
+    r"(?P<scheme>file://)?(?P<path>/[^'\"]*)(?P=quote)\s*$"
+)
+
+
+def relocate_file_store(store: str | Path) -> list[Path]:
+    """Point the absolute paths of a moved MLflow file store at its new location.
+
+    A file store writes the absolute location of every experiment, run, logged
+    model and registered model version into its ``meta.yaml`` files, so after
+    the directory is copied elsewhere ``runs:/`` and ``models:/`` URIs resolve
+    to the old place.  The old root is recovered from each experiment's
+    ``artifact_location`` (``<old root>/<experiment id>``) and replaced by the
+    store's current absolute path.  Returns the rewritten files; running it
+    again is a no-op.
+    """
+    root = Path(store).resolve()
+    if not root.is_dir():
+        raise FileNotFoundError(f"no MLflow file store at {root}")
+
+    old_roots = set()
+    for meta in root.glob("*/meta.yaml"):
+        for line in meta.read_text(encoding="utf-8").splitlines():
+            match = _PATH_LINE.match(line)
+            if match and match["key"] == "artifact_location":
+                path = match["path"].rstrip("/")
+                suffix = "/" + meta.parent.name
+                if path.endswith(suffix):
+                    old_roots.add(path[: -len(suffix)])
+    old_roots.discard(str(root))
+
+    rewritten = []
+    for meta in sorted(root.rglob("meta.yaml")):
+        lines = meta.read_text(encoding="utf-8").splitlines(keepends=True)
+        changed = False
+        for i, line in enumerate(lines):
+            match = _PATH_LINE.match(line.rstrip("\n"))
+            if not match:
+                continue
+            for old in old_roots:
+                path = match["path"]
+                if path == old or path.startswith(old + "/"):
+                    new_path = str(root) + path[len(old) :]
+                    lines[i] = (
+                        f"{match['key']}: {match['quote']}{match['scheme'] or ''}"
+                        f"{new_path}{match['quote']}\n"
+                    )
+                    changed = True
+                    break
+        if changed:
+            meta.write_text("".join(lines), encoding="utf-8")
+            rewritten.append(meta)
+    return rewritten
 
 
 def run_id_from_uri(uri: str) -> str:
