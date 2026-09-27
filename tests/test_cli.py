@@ -156,6 +156,7 @@ def test_generate_writes_the_dataset(
 # Full pipelines
 # --------------------------------------------------------------------------- #
 @pytest.mark.slow
+@pytest.mark.filterwarnings("ignore:consecutive rollout points")
 def test_lorentz_end_to_end(
     run_cli, lorentz_config_path: Path, tmp_path: Path, capsys
 ) -> None:

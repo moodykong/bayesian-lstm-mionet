@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -77,6 +78,7 @@ def evaluate_recursive(
     # ``idx // n_traj`` of trajectory ``idx % n_traj``.  The rollout buffer
     # below is ``[trajectory, search step]``.
     n_traj = dataset.len // config.search_num
+    _check_rollout_grid(config, dataset)
 
     ## Step 2: seed the rollout with the true initial states
     t_next_list = []
@@ -163,9 +165,9 @@ def evaluate_ensemble(
     predictions = []
     progress_bar = trange(len(member_paths), desc="Ensemble members")
     for i in progress_bar:
-        checkpoint = torch.load(
-            member_paths[i], map_location=device, weights_only=False
-        )
+        # Members hold only a state dict, so the restricted (non-pickle) loader
+        # suffices and cannot execute code from a tampered artifact.
+        checkpoint = torch.load(member_paths[i], map_location=device, weights_only=True)
         state_dict = (
             checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
         )
@@ -181,11 +183,8 @@ def evaluate_ensemble(
     G_mean = np.mean(G_preds, axis=0)
     G_std = np.std(G_preds, axis=0)
 
-    ## sample from the posterior predictive.  The original drew
-    ## ``np.random.multivariate_normal(G_mean, np.diag(G_std))``, i.e. a
-    ## diagonal covariance whose entries are the standard deviations; that
-    ## choice is preserved here (scale = sqrt(std)).
-    G_sample = np.random.normal(loc=G_mean, scale=np.sqrt(G_std))
+    ## one draw from the Gaussian approximation of the posterior predictive
+    G_sample = posterior_predictive_sample(G_mean, G_std)
 
     t_next = dataset.t_params[:, -1].detach().cpu().numpy()
 
@@ -245,6 +244,39 @@ def evaluate_ensemble(
         "t_next": t_next,
         "n_members": len(member_paths),
     }
+
+
+def _check_rollout_grid(config: InferConfig, dataset: TorchDataset) -> None:
+    """Warn when a free-running rollout would feed states back at the wrong time.
+
+    The prediction for ``t_n + h`` becomes the current state of the next
+    evaluation point, which is only consistent when ``t_(n+1) = t_n + h``.  With
+    ``search_random = False`` that holds for
+    ``search_num = N_time - 2 * search_len``.
+    """
+    if config.teacher_forcing_prob >= 1.0 or config.scale_mode:
+        return
+    t_params = dataset.t_params.detach().cpu().numpy()
+    t_params = t_params.reshape(config.search_num, -1, t_params.shape[-1])
+    t_n, h = t_params[:, :, 0], t_params[:, :, 1]
+    if not np.allclose(t_n[1:], t_n[:-1] + h[:-1], rtol=0.0, atol=1e-4):
+        warnings.warn(
+            "consecutive rollout points are not one step h apart, so predicted "
+            "states are fed back at the wrong time; use "
+            "inference.search_random=false with "
+            "inference.search_num = N_time - 2 * search_len",
+            stacklevel=3,
+        )
+
+
+def posterior_predictive_sample(mean: np.ndarray, std: np.ndarray) -> np.ndarray:
+    """Draw once from ``N(mean, diag(std ** 2))``, point by point.
+
+    The code released with the paper passed ``std`` where the covariance
+    expects the variance, i.e. it sampled with standard deviation
+    ``sqrt(std)``; see ``CHANGELOG.md``.
+    """
+    return np.random.normal(loc=mean, scale=std)
 
 
 def _predict(

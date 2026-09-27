@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -14,11 +15,12 @@ from blstm_mionet.evaluation.evaluate import (
     evaluate_ensemble,
     evaluate_recursive,
     evaluate_single_step,
+    posterior_predictive_sample,
 )
 from blstm_mionet.evaluation.plotting import ensure_directory
 from blstm_mionet.training import tracking
 from blstm_mionet.utils.seed import set_seed
-from conftest import build_torch_dataset
+from conftest import TINY_N_TIME, build_torch_dataset
 
 SEARCH_NUM = 4
 N_TRAJECTORIES = 6
@@ -158,6 +160,7 @@ def test_evaluate_recursive_with_full_teacher_forcing(
     assert np.allclose(recursive["y_true"], single["y_true"], atol=1e-5)
 
 
+@pytest.mark.filterwarnings("ignore:consecutive rollout points")
 def test_evaluate_recursive_without_teacher_forcing(
     trained_model, single_trajectory_torch_dataset
 ) -> None:
@@ -180,6 +183,36 @@ def test_evaluate_recursive_without_teacher_forcing(
     assert not np.allclose(free_running["y_pred"], forced["y_pred"], atol=1e-5)
 
 
+def test_evaluate_recursive_warns_on_a_strided_grid(
+    trained_model, single_trajectory_torch_dataset
+) -> None:
+    """SEARCH_NUM points on a 99-step trajectory are ~31 steps apart, not h."""
+    config = infer_config(recursive=True, teacher_forcing_prob=0.0, autonomous=True)
+    with pytest.warns(UserWarning, match="not one step h apart"):
+        evaluate_recursive(config, trained_model, single_trajectory_torch_dataset)
+
+
+def test_evaluate_recursive_accepts_a_step_by_step_grid(
+    trained_model, single_trajectory_dataset: Path
+) -> None:
+    search_num = TINY_N_TIME - 2 * 2  # consecutive cuts, h = 1 step
+    dataset, _, _ = build_torch_dataset(
+        single_trajectory_dataset, search_num=search_num, search_len=2
+    )
+    config = infer_config(
+        recursive=True,
+        teacher_forcing_prob=0.0,
+        autonomous=True,
+        search_num=search_num,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = evaluate_recursive(config, trained_model, dataset)
+    assert result["y_pred"].shape == (1, search_num)
+    assert np.isfinite(result["y_pred"]).all()
+
+
+@pytest.mark.filterwarnings("ignore:consecutive rollout points")
 def test_evaluate_recursive_non_autonomous_keeps_the_input(
     trained_model, single_trajectory_torch_dataset
 ) -> None:
@@ -273,6 +306,16 @@ def test_evaluate_ensemble_moments_and_coverage(
         assert result[key].shape == (N_TRAJECTORIES,)
         assert np.isfinite(result[key]).all()
         assert (result[key] >= 0.0).all()
+
+
+def test_posterior_predictive_sample_has_the_ensemble_spread() -> None:
+    """The draw is N(mean, std^2): its spread is ``std``, not ``sqrt(std)``."""
+    set_seed(0)
+    mean = np.full(50_000, 3.0)
+    std = np.full(50_000, 0.04)
+    sample = posterior_predictive_sample(mean, std)
+    assert sample.mean() == pytest.approx(3.0, abs=1e-3)
+    assert sample.std() == pytest.approx(0.04, rel=0.02)
 
 
 def test_evaluate_ensemble_is_deterministic_under_set_seed(
