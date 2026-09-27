@@ -179,9 +179,10 @@ def evaluate_ensemble(
     G_preds = np.vstack(predictions)  # [N_members, N_points]
     G_true = dataset.x_next.detach().cpu().numpy().flatten()
 
-    ## compute first and second moments
+    ## first and second moments; the standard deviation uses the 1 / (M - 1)
+    ## normalisation of the paper (Sec. 3.5.2)
     G_mean = np.mean(G_preds, axis=0)
-    G_std = np.std(G_preds, axis=0)
+    G_std = np.std(G_preds, axis=0, ddof=1 if G_preds.shape[0] > 1 else 0)
 
     ## one draw from the Gaussian approximation of the posterior predictive
     G_sample = posterior_predictive_sample(G_mean, G_std)

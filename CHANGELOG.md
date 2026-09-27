@@ -15,6 +15,10 @@
   the covariance expects the variance, which sampled with standard deviation `sqrt(std)`. Only
   the sample curve and its two error tables change; the ensemble mean, standard deviation and
   PICP do not.
+- **The ensemble standard deviation uses `1 / (M - 1)`**, as defined in Sec. 3.5.2 of the paper
+  (it was `1 / M`). For M = 300 this widens the band by 0.17 %.
+- **Ausgrid is tested on 100 sub-sequences per day**, as in Sec. 4.3 of the paper (the
+  configuration and `scripts/reproduce_ausgrid.sh` used 200).
 
 ### Fixed
 
@@ -38,7 +42,14 @@
 ### Documentation
 
 - The Ausgrid window (CSV columns 18-38) holds the half-hour readings from 07:00 to 17:00, not
-  "9 am to 7 pm".
+  "9 am to 7 pm" as the paper puts it (the paper counts the columns from midnight and skips the
+  five metadata columns). The column window itself is unchanged.
+- The README states two properties of the pendulum data that the paper's wording does not: the
+  Gaussian random field is evaluated at `theta_dot` (a state-feedback torque), and its kernel
+  `exp(-(d / a)^2)` with `a = 0.01` is an RBF kernel with `l ≈ 0.007`. Both are kept as in the
+  research code that produced the published numbers.
+- The reSGLD epoch count (400, i.e. 40 burn-in epochs before 360 members) is attributed to the
+  research code; the paper does not state it.
 - The `mlflow ui` hints in the notebooks, scripts and READMEs set `MLFLOW_ALLOW_FILE_STORE=true`,
   without which MLflow 3 refuses the `mlruns` file store.
 - `scripts/README.md`: a reSGLD run registers `<name>-bayesian`, and its burn-in is 40 epochs.

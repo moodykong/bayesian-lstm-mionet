@@ -12,8 +12,9 @@
 #   1. generate (or reuse) the training set of that system
 #   2. generate (or reuse) the test set of that system
 #   3. train two Langevin chains with configs/bayesian/SYSTEM.yaml; after the
-#      burn-in the exploit chain is sampled once per epoch, giving the 360
-#      member posterior ensemble of the paper (400 epochs - 40 burn-in)
+#      burn-in the exploit chain is sampled once per epoch, giving a 360
+#      member posterior ensemble (400 epochs - 40 burn-in, as in the research
+#      code; the paper evaluates M = 300 of them)
 #   4. evaluate the ensemble with `blstm-mionet infer-bayesian`, which reads the
 #      M = 300 members named by inference.n_ensemble and prints the PICP of the
 #      95% credible interval

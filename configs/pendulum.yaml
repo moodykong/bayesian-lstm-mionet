@@ -13,7 +13,7 @@ data:
     - [-8.0, 8.0]
   control: gaussian # "gaussian" (u ~ GRF) or "designate" (u = sin(t / 2))
   grf:
-    a: 0.01 # RBF kernel length l = 0.01
+    a: 0.01 # correlation exp(-(d / a)^2), i.e. RBF length l = a / sqrt(2)
     nu: 1.0
   output: data/pendulum_ctr_grf_N_5000_h001_T10.npy
   seed: 999

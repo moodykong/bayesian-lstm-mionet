@@ -49,7 +49,9 @@ def control_formula(t: float, x: np.ndarray) -> float:
 def control_grf(func: Callable[[float], float]) -> Callable[[float, np.ndarray], float]:
     """Wrap a Gaussian random field sample into a state feedback control.
 
-    The field is evaluated at the angular velocity ``x[1]``.
+    The field is evaluated at the angular velocity ``x[1]``, not at the time
+    ``t``: this is how the research code behind the paper generated the
+    pendulum data, although the paper writes the control as ``u(t)``.
     """
 
     def control(t: float, x: np.ndarray) -> float:

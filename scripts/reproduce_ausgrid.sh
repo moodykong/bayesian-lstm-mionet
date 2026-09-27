@@ -130,8 +130,8 @@ else
     TEST_A_GROUP="$(customer_range 51 60)"
     TEST_B_GROUP="$(customer_range 61 70)"
     TRAIN_ARGS=()
-    ## 200 sub-sequences per daily profile (configs/ausgrid.yaml).
-    TEST_SEARCH_NUM=200
+    ## 100 sub-sequences per daily profile (configs/ausgrid.yaml, paper Sec. 4.3).
+    TEST_SEARCH_NUM=100
     RUN_NAME="lstm_mionet_ausgrid"
 fi
 

@@ -24,7 +24,8 @@ data:
     category: GG # gross PV generation
     delta_t_idxs: 0.1 # 0.1 * 0.5 h = 0.05 h spacing after interpolation
     # CSV columns [18, 39): after the five metadata columns, the 21 half-hour
-    # readings labelled 07:00 ... 17:00 (the daylight hours for "GG").
+    # readings labelled 07:00 ... 17:00 (the daylight hours for "GG").  The
+    # paper calls this window "9 am to 7 pm", counting columns from midnight.
     column_start: 18
     column_end: 39
     min_nonzero_fraction: 0.8
@@ -92,7 +93,7 @@ inference:
   autonomous: true
   state_component: 0
   search_len: 10
-  search_num: 200
+  search_num: 100 # each daily profile replicated 100 times (paper Sec. 4.3)
   search_random: false
   offset: 0.0
   t_max: null

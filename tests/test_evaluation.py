@@ -308,6 +308,25 @@ def test_evaluate_ensemble_moments_and_coverage(
         assert (result[key] >= 0.0).all()
 
 
+def test_evaluate_ensemble_uses_the_sample_standard_deviation(
+    ensemble_model, ensemble_members, test_dataset, cpu_device
+) -> None:
+    """sigma^2 = 1 / (M - 1) * sum (F_k - mu)^2, as in Sec. 3.5.2 of the paper."""
+    result = evaluate_ensemble(
+        infer_config(), ensemble_model, test_dataset, ensemble_members, cpu_device
+    )
+    predictions = []
+    for path in ensemble_members:
+        checkpoint = torch.load(path, map_location=cpu_device, weights_only=True)
+        ensemble_model.load_state_dict(checkpoint["state_dict"])
+        ensemble_model.eval()
+        with torch.no_grad():
+            inputs = [test_dataset.input_data, test_dataset.x_n, test_dataset.t_params]
+            predictions.append(ensemble_model(inputs).numpy().flatten())
+    expected = np.std(np.vstack(predictions), axis=0, ddof=1)
+    assert np.allclose(result["std"], expected.reshape(SEARCH_NUM, -1).T, atol=1e-6)
+
+
 def test_posterior_predictive_sample_has_the_ensemble_spread() -> None:
     """The draw is N(mean, std^2): its spread is ``std``, not ``sqrt(std)``."""
     set_seed(0)

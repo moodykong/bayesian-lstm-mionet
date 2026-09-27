@@ -204,26 +204,40 @@ The system is autonomous, so Branch 2 reads the state history (`data.control: nu
 
 [`configs/pendulum.yaml`](configs/pendulum.yaml), [`scripts/reproduce_pendulum.sh`](scripts/reproduce_pendulum.sh).
 5000 initial conditions from `theta in [-pi, pi]`, `theta_dot in [-8, 8]` and 5000 control functions
-drawn from a Gaussian random field with RBF kernel length 0.01 (`data.control: gaussian`); RK-4 at
-`Δ = 0.01 s` over `T = 10 s`; each control replicated 10 times, `N_train = 50000`. For the
-out-of-distribution test of Table 3, regenerate the test set with `--set data.control=designate`,
-which uses `u = sin(t/2)`. Hours on one GPU.
+drawn from a Gaussian random field (`data.control: gaussian`); RK-4 at `Δ = 0.01 s` over `T = 10 s`;
+each control replicated 10 times, `N_train = 50000`. For the out-of-distribution test of Table 3,
+regenerate the test set with `--set data.control=designate`, which uses `u = sin(t/2)`. Hours on one
+GPU.
+
+Two details of the GRF differ from the wording of the paper, and the code keeps them as they were in
+the research code that produced the published numbers. The field is sampled once per trajectory and
+evaluated at the angular velocity, `u = g(theta_dot)`, i.e. a random state-feedback torque rather
+than a function of time. Its correlation is `exp(-(d / a)^2)` with `a = 0.01`, which is the paper's
+RBF kernel `exp(-d^2 / (2 l^2))` with `l = a / sqrt(2) ≈ 0.007` rather than `l = 0.01`.
 
 ### Ausgrid PV generation (Sec. 4.3)
 
 [`configs/ausgrid.yaml`](configs/ausgrid.yaml), [`scripts/reproduce_ausgrid.sh`](scripts/reproduce_ausgrid.sh).
-Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, the 21
-half-hour readings from 07:00 to 17:00 (CSV columns 18-38), interpolated to `h = 0.05 hours`; `search_len: 10` gives
-`h_max = 0.5 hours` and `search_num: 5` gives `N_train = 91500` daily sub-sequences. Testing uses
-customers 51-60 and 61-70. Needs the licensed CSV files, see below. Hours on one GPU.
+Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, CSV columns
+18-38, interpolated to `h = 0.05 hours`; `search_len: 10` gives `h_max = 0.5 hours`, and
+`search_num: 5` replicates every daily profile five times (the paper counts
+`N_train = 366 x 50 x 5 = 91500`; days with too few non-zero readings are dropped first). Testing
+uses customers 51-60 and 61-70 with 100 sub-sequences per day. Needs the licensed CSV files, see
+below. Hours on one GPU.
+
+The paper describes columns 18-38 as "9 am to 7 pm", counting from midnight. In the Ausgrid files
+the 48 half-hour readings follow five metadata columns (`Customer`, `Generator Capacity`,
+`Postcode`, `Consumption Category`, `date`), so these columns hold the readings labelled 07:00 to
+17:00. The code keeps the column window of the research code; only the description differs.
 
 ### Bayesian ensembles (Sec. 3.5)
 
 Add `--bayesian configs/bayesian/<experiment>.yaml` to `train` and the optimiser switches from Adam
 to replica-exchange SGLD: an *exploit* chain at low temperature and an *explore* chain at twice that
 temperature, swapping after every epoch. Members are collected once per epoch after the burn-in
-`epochs - (n_ensemble + 1)`; the shipped files use `n_ensemble: 360` (400 epochs, 40 burn-in) and the
-paper evaluates M = 300 of them. Evaluate with `infer-bayesian --run runs:/<run id>`, or run
+`epochs - (n_ensemble + 1)`; the shipped files use `n_ensemble: 360`, which with `--epochs 400` gives
+40 burn-in epochs as in the research code (the paper does not state the epoch count), and the paper
+evaluates M = 300 members. Evaluate with `infer-bayesian --run runs:/<run id>`, or run
 [`scripts/reproduce_bayesian.sh`](scripts/reproduce_bayesian.sh) `{lorentz|pendulum|ausgrid}`.
 A reSGLD run registers its best exploit-chain snapshot under `<registered_model_name>-bayesian`
 (for example `lorentz-bayesian`), so `models:/lorentz/latest` keeps pointing at the Adam model.
