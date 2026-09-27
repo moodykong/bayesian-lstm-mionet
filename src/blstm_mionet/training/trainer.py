@@ -36,18 +36,12 @@ def train_adam(
             f"\n***** Training with Adam Optimizer for {config.epochs} epochs and using {dataset.len} data samples*****\n"
         )
 
-    ## Step 1: use trained model if required
+    ## Step 1: warm start from a logged model if required.  A failure is an
+    ## error: silently training from scratch would mislabel the run.
     if config.resume_model:
-        try:
-            trained_model = tracking.load_model(config.resume_model, device)
-            model.load_state_dict(trained_model.state_dict())
-            print(f"Warm started from {config.resume_model}.")
-        except Exception as exc:  # noqa: BLE001 - mirrors the original fallback
-            print(
-                "Error: ",
-                exc,
-                "loading trained model failed and new model will be trained instead.",
-            )
+        trained_model = tracking.load_model(config.resume_model, device)
+        model.load_state_dict(trained_model.state_dict())
+        print(f"Warm started from {config.resume_model}.")
 
     ## Step 2: define the optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -105,7 +99,9 @@ def train_adam(
 
                     # step b: compute loss
                     loss = loss_fn(y_pred, y_batch)
-                    epoch_loss += loss.squeeze()
+                    # Detached, so the running sum does not chain every batch's
+                    # autograd graph together for the rest of the epoch.
+                    epoch_loss += loss.detach()
 
                 # step c: compute gradients and backpropagate
                 optimizer.zero_grad()
@@ -139,7 +135,7 @@ def train_adam(
 
                             # step b: compute validation loss
                             val_loss = loss_fn(y_val_pred, y_val_batch)
-                            epoch_val_loss += val_loss.squeeze()
+                            epoch_val_loss += val_loss.detach()
 
                     if len(val_loader) == 0:
                         raise ValueError(

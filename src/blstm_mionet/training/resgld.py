@@ -5,9 +5,16 @@ high temperature *explore* chain.  After every epoch the chains may swap their
 parameters with probability ``min(1, exchange_rate)``; once the burn-in is over
 the exploit chain is sampled to build the Bayesian ensemble.
 
-This is ``optim.supervisor.replica_train_UQ_V2`` with the hardcoded
-``./output`` paths replaced by MLflow artifacts.  The update equations, the
-swap criterion and the burn-in rule are unchanged.
+Each chain follows the momentum (SGHMC-style) Langevin update
+
+    v     <- (1 - alpha) * v - eta * grad(L) / sigma + scale * xi,   xi ~ N(0, I)
+    theta <- theta + v
+
+with ``scale = sqrt(2 * (alpha - beta) * eta * tau)`` (see
+:class:`blstm_mionet.config.LangevinConfig`).  The noise ``xi`` is drawn
+independently for every parameter entry; the code released with the paper drew
+a single scalar per parameter tensor, see ``CHANGELOG.md``.  The swap criterion
+and the burn-in rule are those of the paper.
 """
 
 from __future__ import annotations
@@ -21,15 +28,55 @@ import mlflow
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from tqdm.auto import trange
+from tqdm.auto import tqdm, trange
 
-from blstm_mionet.config import BayesianConfig, TrainConfig
+from blstm_mionet.config import BayesianConfig, LangevinConfig, TrainConfig
 from blstm_mionet.training import tracking
 
 
-def _zero_velocities(net: torch.nn.Module) -> list[np.ndarray]:
+def _zero_velocities(net: torch.nn.Module) -> list[torch.Tensor]:
     """Zero-initialised velocity buffers, one per parameter tensor."""
-    return [torch.zeros_like(p.data).cpu().detach().numpy() for p in net.parameters()]
+    return [torch.zeros_like(p, requires_grad=False) for p in net.parameters()]
+
+
+@torch.no_grad()
+def langevin_step(
+    net: torch.nn.Module,
+    velocities: list[torch.Tensor],
+    chain: LangevinConfig,
+    sigma: float,
+) -> None:
+    """Apply one momentum Langevin update to ``net`` in place.
+
+    ``v <- (1 - alpha) v - eta * grad / sigma + scale * xi`` with an
+    independent standard normal ``xi`` per parameter entry, then
+    ``theta <- theta + v``.  Gradients must already be populated.
+    """
+    for p, v in zip(net.parameters(), velocities, strict=True):
+        if p.grad is None:
+            continue
+        v.mul_(1.0 - chain.alpha)
+        v.add_(p.grad, alpha=-chain.eta / sigma)
+        v.add_(torch.randn_like(p), alpha=chain.scale)
+        p.add_(v)
+
+
+def _chain_step(
+    net: torch.nn.Module,
+    velocities: list[torch.Tensor],
+    chain: LangevinConfig,
+    bayesian: BayesianConfig,
+    x_batch: Any,
+    y_batch: torch.Tensor,
+) -> float:
+    """Forward, backward and Langevin update of one chain; returns the batch MSE."""
+    net.zero_grad()
+    loss = ((net(x_batch) - y_batch) ** 2).mean()
+    loss.backward()
+    if bayesian.use_grad_norm:
+        torch.nn.utils.clip_grad_value_(net.parameters(), bayesian.grad_norm)
+    langevin_step(net, velocities, chain, bayesian.sigma)
+    return loss.item()
 
 
 def train_resgld(
@@ -99,79 +146,12 @@ def train_resgld(
                 epoch_loss_explore = 0
 
                 for x_batch, y_batch in train_loader:
-                    ## batch training of exploit model
-
-                    # step a: forward pass
-                    model_exploit.zero_grad()
-                    ge_exploit = model_exploit(x_batch)
-
-                    # step b: compute loss
-                    loss_exploit = ((ge_exploit - y_batch) ** 2).mean()
-
-                    # step c: compute gradients and backpropagate
-                    loss_exploit.backward()
-                    if bayesian.use_grad_norm:
-                        torch.nn.utils.clip_grad_value_(
-                            model_exploit.parameters(), bayesian.grad_norm
-                        )
-
-                    # step d: update parameters
-                    for k, p in enumerate(model_exploit.parameters()):
-                        brownie_exploit = np.random.normal(0, 1, 1)[0]
-                        grad_exploit = p.grad.data.cpu().detach().numpy() / sigma
-                        vel_exploit[k] = (
-                            -grad_exploit * exploit.eta
-                            + (1 - exploit.alpha) * vel_exploit[k]
-                            + brownie_exploit * exploit.scale
-                        )
-                        p.data.add_(
-                            torch.tensor(
-                                vel_exploit[k],
-                                requires_grad=False,
-                                device=device,
-                                dtype=torch.float32,
-                            )
-                        )
-
-                    # step e: log batch loss
-                    epoch_loss_exploit += loss_exploit.detach().cpu().numpy().squeeze()
-
-                    ## batch training of explore model
-
-                    # step a: forward pass
-                    model_explore.zero_grad()
-                    ge_explore = model_explore(x_batch)
-
-                    # step b: compute loss
-                    loss_explore = ((ge_explore - y_batch) ** 2).mean()
-
-                    # step c: compute gradients and backpropagate
-                    loss_explore.backward()
-                    if bayesian.use_grad_norm:
-                        torch.nn.utils.clip_grad_value_(
-                            model_explore.parameters(), bayesian.grad_norm
-                        )
-
-                    # step d: update parameters
-                    for k, p in enumerate(model_explore.parameters()):
-                        brownie_explore = np.random.normal(0, 1, 1)[0]
-                        grad_explore = p.grad.data.cpu().detach().numpy() / sigma
-                        vel_explore[k] = (
-                            -grad_explore * explore.eta
-                            + (1 - explore.alpha) * vel_explore[k]
-                            + brownie_explore * explore.scale
-                        )
-                        p.data.add_(
-                            torch.tensor(
-                                vel_explore[k],
-                                requires_grad=False,
-                                device=device,
-                                dtype=torch.float32,
-                            )
-                        )
-
-                    # step e: log batch loss
-                    epoch_loss_explore += loss_explore.detach().cpu().numpy().squeeze()
+                    epoch_loss_exploit += _chain_step(
+                        model_exploit, vel_exploit, exploit, bayesian, x_batch, y_batch
+                    )
+                    epoch_loss_explore += _chain_step(
+                        model_explore, vel_explore, explore, bayesian, x_batch, y_batch
+                    )
 
                 if len(train_loader) == 0:
                     raise ValueError(
@@ -201,13 +181,15 @@ def train_resgld(
                     for f, c in zip(
                         model_exploit.parameters(),
                         model_explore.parameters(),
-                        strict=False,
+                        strict=True,
                     ):
                         f.data, c.data = (c.data, f.data)
 
                     vel_exploit, vel_explore = (vel_explore, vel_exploit)
                     it_switches = True
-                    print(f"Switches LDs with exchange rate of = {exchange_rate}")
+                    tqdm.write(
+                        f"Swapped the chains (exchange rate {exchange_rate:.4g})."
+                    )
                 logger["switches"].append(it_switches)
 
                 _log_epoch_metrics(logger, epoch)
