@@ -184,6 +184,27 @@ def test_lstm_mlp_ignores_the_zero_padding() -> None:
         assert torch.allclose(encoder(short), encoder(padded), atol=1e-6)
 
 
+def test_lstm_mlp_sequence_lengths() -> None:
+    history = torch.tensor(
+        [
+            [1.0, 2.0, 3.0, 0.0, 0.0],  # plain right padding
+            [1.0, 0.0, 3.0, 0.0, 0.0],  # an exact zero inside the history
+            [4.0, 5.0, 6.0, 7.0, 8.0],  # full length
+        ]
+    )[..., None]
+    assert LSTM_MLP.sequence_lengths(history).tolist() == [3, 3, 5]
+
+
+def test_lstm_mlp_keeps_a_zero_inside_the_history() -> None:
+    """A zero value mid-history must not truncate the most recent samples."""
+    encoder = LSTM_MLP(layer_size=[8, 6], lstm_size=4, lstm_layer=1, activation="relu")
+    encoder.eval()
+    first = torch.tensor([1.0, 0.0, 3.0, 0.0, 0.0])[None, :, None]
+    second = torch.tensor([1.0, 0.0, -3.0, 0.0, 0.0])[None, :, None]
+    with torch.no_grad():
+        assert not torch.allclose(encoder(first), encoder(second))
+
+
 @pytest.mark.parametrize(
     "identifier",
     [

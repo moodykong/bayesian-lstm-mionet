@@ -266,7 +266,7 @@ def test_prepare_local_predict_x_next_lies_inside_the_trajectory(
 
 
 def test_prepare_local_predict_is_deterministic(lorentz_split) -> None:
-    """The routine re-seeds with 999 internally, so repeated calls agree."""
+    """The routine draws from its own seeded generator, so repeated calls agree."""
     kwargs = dict(
         search_len=SEARCH_LEN,
         search_num=SEARCH_NUM,
@@ -280,6 +280,25 @@ def test_prepare_local_predict_is_deterministic(lorentz_split) -> None:
     second = prepare_local_predict_dataset(lorentz_split, **kwargs)
     for left, right in zip(first, second, strict=True):
         assert np.array_equal(left, right)
+
+
+def test_prepare_local_predict_leaves_the_global_rng_alone(lorentz_split) -> None:
+    """Masking must not re-seed NumPy or PyTorch behind the caller's back."""
+    set_seed(2024)
+    expected_np = np.random.rand(3)
+    expected_torch = torch.rand(3)
+
+    set_seed(2024)
+    prepare_local_predict_dataset(
+        lorentz_split,
+        search_len=SEARCH_LEN,
+        search_num=SEARCH_NUM,
+        search_random=True,
+        t_max=None,
+        verbose=False,
+    )
+    assert np.array_equal(np.random.rand(3), expected_np)
+    assert torch.equal(torch.rand(3), expected_torch)
 
 
 def test_prepare_local_predict_deterministic_grid(lorentz_split) -> None:
