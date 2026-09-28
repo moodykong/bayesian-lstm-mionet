@@ -173,8 +173,8 @@ MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri mlruns
    It also registers a model version named after `training.registered_model_name` (`lorentz` here),
    so `models:/lorentz/latest` resolves to it afterwards.
 3. Prints `Loading model from runs:/<run id>/model`, the L1 and L2 error tables, `Figure saved to
-   figures/infer_trajs_0.png.` and a summary line, `L2-relative error: mean = 46.4144 %, st. dev. =
-   12.2011 % over 20 trajectories`. Two epochs on 20 trajectories is a smoke test, not a result.
+   figures/infer_trajs_0.png.` and a summary line, `L2-relative error: mean = 65.3379 %, st. dev. =
+   5.3737 % over 20 trajectories`. Two epochs on 20 trajectories is a smoke test, not a result.
 4. Prints `Collecting up to 3 ensemble members after epoch 4.` (the burn-in is
    `epochs - (n_ensemble + 1)`), a bar showing both chains and whether they swapped, and `Logged 3
    ensemble members to runs:/<run id>/ensemble`.
@@ -188,8 +188,11 @@ MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri mlruns
 ## Reproducing the paper
 
 Every experiment is one YAML file plus one script; the scripts accept `--device` and a `--quick` flag
-that shrinks the run to a CPU demo. The paper-scale settings below take hours on a GPU and were
-**not** executed to produce this README.
+that shrinks the run to a CPU demo. The configurations follow the paper wherever it states a setting;
+the network sizes, which it does not state, are those of the published models (LSTM width 10 for
+Lorenz and pendulum, 100 for Ausgrid). `tests/test_paper_settings.py` checks both. Training at paper
+scale takes hours on a GPU and was **not** re-run for this README; the published models were
+evaluated instead (see below).
 
 ### Lorentz 63 (Sec. 4.1)
 
@@ -251,10 +254,15 @@ published ensembles bit for bit; the deterministic LSTM-MIONet path is unchanged
 
 ### Pretrained models and data
 
-A OneDrive archive holds both the Ausgrid selection and the `mlruns` folder of the paper, with the
-registered models `lorentz`, `pendulum` and `Ausgrid`:
-[download](https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz).
-[`scripts/download_data.sh`](scripts/download_data.sh) is the scripted entry point.
+The GitHub release [`data-v1.0`](https://github.com/moodykong/bayesian-lstm-mionet/releases/tag/data-v1.0) holds two archives: `Ausgrid.zip`, the three Ausgrid CSV
+files, and `mlruns.zip`, the MLflow store of the paper with the registered models `lorentz`,
+`pendulum` and `Ausgrid`. [`scripts/download_data.sh`](scripts/download_data.sh) downloads both,
+checks them against [`scripts/checksums.sha256`](scripts/checksums.sha256), unpacks them into the
+repository without overwriting anything and runs `relocate-mlruns`:
+
+```bash
+scripts/download_data.sh
+```
 
 Unpack `mlruns` at the repository root (or leave it anywhere and point `MLFLOW_TRACKING_URI` at it —
 the environment variable wins over `tracking.uri` in the YAML), then run `relocate-mlruns` once.
@@ -289,14 +297,16 @@ pendulum mean is carried by a few initial states from which `u = sin(t/2)` spins
 through many revolutions (RMS angle above 70 rad, far outside the training data); the median is
 3.2 %.
 
-The registered models were trained with a few settings that differ from the paper's text and from
-`configs/`: `lorentz` has an LSTM of width 10 and saw 10 masks per trajectory with `offset: 0.02`,
-and `Ausgrid` saw 10 masks per daily profile. Each run's parameters are logged in the archive.
+`configs/` follow the paper wherever it states a setting, and take the network sizes and the cut
+offset, which it does not state, from these models (`tests/test_paper_settings.py` pins both). Two
+published checkpoints deviate from the paper's text: `lorentz` and `Ausgrid` were trained with 10
+masks per trajectory instead of the 4 and 5 of Sections 4.1 and 4.3. Retraining them with the
+shipped configurations removes the difference; each run's parameters are logged in the archive.
 
 The Ausgrid "Solar home electricity data" CSV files are Ausgrid's and are not part of this
 repository. Ausgrid no longer hosts the download page; the dataset is described in
-[Ratnam et al. (2017)](https://doi.org/10.1080/14786451.2015.1100196), reference [34] of the paper, and the three files are in the archive
-above. `data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
+[Ratnam et al. (2017)](https://doi.org/10.1080/14786451.2015.1100196), reference [34] of the paper, and the three files are
+`Ausgrid.zip` of the release above. `data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
 files, by default at:
 
 ```

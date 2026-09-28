@@ -19,6 +19,8 @@ data:
   seed: 999
   verbose: true
 
+# The paper does not state the network sizes; they are those of the published
+# model (models:/pendulum/latest in the data release).
 model:
   architecture: LSTM_MIONet # LSTM_MIONet | LSTM_DeepONet | DeepONet | DeepONet_Local
   branch_state:
@@ -29,7 +31,7 @@ model:
     width: 200
     depth: 3
     activation: relu
-    lstm_size: 100
+    lstm_size: 10 # as in the published model
     lstm_layer_num: 2
   trunk:
     width: 200
@@ -43,7 +45,7 @@ training:
   search_len: 2 # h_max = 0.02 (s) = 2 steps
   search_num: 10 # u replicated 10 times -> N_train = 50000
   search_random: true
-  offset: 0.0
+  offset: 0.02 # t_n >= 0.02 s as in the published model (paper: t_n in (0, T - h_max))
   t_max: null
   scale_mode: "" # "" | normalize | min-max
   holdout_size: 0.1

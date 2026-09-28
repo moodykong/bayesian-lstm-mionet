@@ -105,27 +105,22 @@ with live output -- and exits non-zero if any of them fails, printing the failin
 pipeline's log.  Nothing is written into the repository.  Use `--keep` to
 inspect the temporary directory afterwards.
 
-**`download_data.sh`** fetches the two things that are not in git: the Ausgrid
-CSV selection and the `mlruns` store with the pretrained registered models
-(`lorentz`, `pendulum`, `Ausgrid`).  Both currently live in one OneDrive folder,
-and OneDrive share links cannot be downloaded non-interactively, so the script
-does not pretend otherwise: run without arguments it prints step-by-step manual
-instructions (download the folder as a zip in a browser, re-run with
-`--archive PATH`), the three CSV paths `configs/ausgrid.yaml` expects and the
-original Ausgrid source.  Given `--archive PATH` (or `--url URL`, for a future
-Zenodo or GitHub release link that curl can follow) it unpacks the archive into
-a temporary directory, verifies SHA-256 checksums when `scripts/checksums.sha256`
-lists any, merges the Ausgrid folders into `data/Ausgrid/` and the run store
-into `./mlruns` without ever replacing or deleting existing files, and reports
-what landed where.  It needs no Python environment.  Afterwards run
-`blstm-mionet relocate-mlruns mlruns` once: MLflow stores absolute paths, and
-the archived runs were written on another machine.
+**`download_data.sh`** fetches the two things that are not in git, both from
+the GitHub release `data-v1.0`: `Ausgrid.zip` (the three Ausgrid CSV files) and
+`mlruns.zip` (the MLflow store with the pretrained registered models `lorentz`,
+`pendulum` and `Ausgrid`).  Run without arguments it downloads both; `--archive
+PATH` takes files downloaded by hand and `--url URL` other direct links (both
+repeatable).  Every archive is checked against `scripts/checksums.sha256`,
+unpacked into a temporary directory and merged into `data/Ausgrid/` and
+`./mlruns` without ever replacing or deleting existing files.  The script then
+runs `blstm-mionet relocate-mlruns`, because MLflow stores absolute paths and
+the archived runs were written on another machine; without the CLI it prints
+that command instead.  Only curl and unzip (or python3) are required.
 
-**`checksums.sha256`** ships empty on purpose; the maintainer fills it in once
-the archive has a stable published URL.  **`_common.sh`** is not a user facing
-script: it is sourced by the others and holds the CLI discovery, the shared
-argument parsing, the "generate only if missing" helper, the run-id capture and
-the synthetic Ausgrid CSV writer.
+**`checksums.sha256`** lists the SHA-256 of the two release archives.
+**`_common.sh`** is not a user facing script: it is sourced by the others and
+holds the CLI discovery, the shared argument parsing, the "generate only if
+missing" helper, the run-id capture and the synthetic Ausgrid CSV writer.
 
 ## Runtimes
 

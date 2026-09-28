@@ -349,7 +349,7 @@ def test_to_flat_dict_keys_and_values(lorentz_config_path: Path) -> None:
 
     assert flat["name"] == "lorentz"
     assert flat["model.architecture"] == "LSTM_MIONet"
-    assert flat["model.branch_memory.lstm_size"] == 100
+    assert flat["model.branch_memory.lstm_size"] == 10
     assert flat["training.epochs"] == 1000
     assert flat["data.x_init_pts"] == [[-17.0, 20.0], [-23.0, 28.0], [0.0, 50.0]]
     assert flat["tracking.uri"] == "mlruns"

@@ -34,6 +34,8 @@ data:
   seed: 999
   verbose: true
 
+# The paper does not state the network sizes; they are those of the published
+# model (models:/Ausgrid/latest in the data release).
 model:
   architecture: LSTM_MIONet # LSTM_MIONet | LSTM_DeepONet | DeepONet | DeepONet_Local
   branch_state:

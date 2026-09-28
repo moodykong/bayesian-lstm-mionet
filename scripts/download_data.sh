@@ -1,44 +1,42 @@
 #!/usr/bin/env bash
 #
-# download_data.sh -- fetch the Ausgrid selection and the pretrained MLflow runs.
+# download_data.sh -- fetch the Ausgrid CSV files and the pretrained MLflow runs.
 #
-#   scripts/download_data.sh [--archive PATH] [--url URL] [--dest DIR] [--dry-run]
+#   scripts/download_data.sh [--archive PATH]... [--url URL]... [--dest DIR] [--dry-run]
 #
-# The authors currently host both pieces in one OneDrive folder:
+# Both live in the GitHub release "data-v1.0" of this repository:
 #
-#   https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz
+#   Ausgrid.zip  the three Ausgrid "Solar home half-hour data" CSV files
+#   mlruns.zip   the MLflow store of the paper, with the registered models
+#                lorentz, pendulum and Ausgrid
 #
-# OneDrive share links cannot be fetched non-interactively (they answer with an
-# HTML page, not the archive), so this script does NOT pretend to download them:
-# run it without arguments to get step-by-step manual instructions, download the
-# folder as a single zip in a browser, and re-run with
-#
-#   scripts/download_data.sh --archive ~/Downloads/blstm-mionet-data.zip
-#
-# --url is for a future direct link (Zenodo, a GitHub release asset, ...) that
-# curl can follow; the archive it points at is handled exactly like --archive.
-#
-# What happens with an archive:
+# Run without arguments to download both.  --archive takes zips downloaded by
+# hand (for example from the release page in a browser) and --url other direct
+# links; both may be repeated.  For every archive:
+#   * its SHA-256 is checked against scripts/checksums.sha256 (by file name),
 #   * it is unpacked into a temporary directory (removed on exit),
-#   * SHA-256 checksums are verified when scripts/checksums.sha256 lists any,
-#   * the Ausgrid CSV folders are merged into data/Ausgrid/,
-#   * the MLflow store is merged into ./mlruns (existing runs are never deleted),
-#   * the script prints what landed where.
+#   * data/Ausgrid/ and mlruns/ are merged into the destination without ever
+#     replacing or deleting existing files.
+# Afterwards `blstm-mionet relocate-mlruns` points the store at its new location
+# (MLflow records absolute paths); when the command is not available the script
+# prints it instead.
 #
-# This script needs no Python environment, only curl/unzip.
+# Only curl and unzip (or python3) are needed.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 REPO_ROOT="$PWD"
 
-ONEDRIVE_URL="https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz"
+RELEASE_URL="https://github.com/moodykong/bayesian-lstm-mionet/releases/download/data-v1.0"
+RELEASE_PAGE="https://github.com/moodykong/bayesian-lstm-mionet/releases/tag/data-v1.0"
+RELEASE_ASSETS=(Ausgrid.zip mlruns.zip)
 # Ausgrid no longer hosts the dataset page; this is the paper describing the data.
 AUSGRID_URL="https://doi.org/10.1080/14786451.2015.1100196"
 CHECKSUM_FILE="$REPO_ROOT/scripts/checksums.sha256"
 CONFIG="$REPO_ROOT/configs/ausgrid.yaml"
 
-ARCHIVE=""
-URL=""
+ARCHIVES=()
+URLS=()
 DEST="$PWD"
 DRY_RUN=0
 
@@ -46,8 +44,8 @@ usage() {
     sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^#//; s/^ //'
     cat <<'EOF'
 Options:
-  --archive PATH   zip archive that was already downloaded by hand
-  --url URL        direct download link curl can follow (future Zenodo/GitHub release)
+  --archive PATH   a zip downloaded by hand (repeatable)
+  --url URL        a direct download link curl can follow (repeatable)
   --dest DIR       where data/Ausgrid and mlruns are created (default: repository root)
   --dry-run        show what would be copied, copy nothing
   -h, --help       show this message
@@ -70,20 +68,20 @@ while [[ $# -gt 0 ]]; do
         ;;
     --archive)
         [[ $# -ge 2 ]] || die "--archive needs a path"
-        ARCHIVE="$2"
+        ARCHIVES+=("$2")
         shift 2
         ;;
     --archive=*)
-        ARCHIVE="${1#--archive=}"
+        ARCHIVES+=("${1#--archive=}")
         shift
         ;;
     --url)
         [[ $# -ge 2 ]] || die "--url needs a URL"
-        URL="$2"
+        URLS+=("$2")
         shift 2
         ;;
     --url=*)
-        URL="${1#--url=}"
+        URLS+=("${1#--url=}")
         shift
         ;;
     --dest)
@@ -117,32 +115,22 @@ expected_csv_paths() {
 
 print_manual_instructions() {
     hr
-    printf 'Manual download (the OneDrive link cannot be fetched by curl)\n'
+    printf 'Manual download\n'
     hr
     cat <<EOF
-  1. open this folder in a browser and sign in if you are asked to:
+  Download Ausgrid.zip and mlruns.zip from the release page in a browser:
 
-       $ONEDRIVE_URL
+       $RELEASE_PAGE
 
-  2. use "Download" on the whole folder; OneDrive packs it into one zip file
-     (a few GB: it holds the Ausgrid selection and the mlruns store with the
-     pretrained registered models lorentz, pendulum and Ausgrid),
+  and re-run this script with the files you downloaded:
 
-  3. re-run this script pointing at the file you downloaded:
+       scripts/download_data.sh --archive ~/Downloads/Ausgrid.zip --archive ~/Downloads/mlruns.zip
 
-       scripts/download_data.sh --archive ~/Downloads/<name>.zip
-
-     or, once the archive is mirrored somewhere curl can reach,
-
-       scripts/download_data.sh --url https://zenodo.org/.../blstm-mionet-data.zip
-
-  Ausgrid no longer hosts the "Solar home half-hour data" releases, so the
-  archive above is the practical source; the dataset is described in
+  The Ausgrid data are described in
 
        $AUSGRID_URL
 EOF
 }
-
 print_expected_layout() {
     printf '\n'
     hr
@@ -164,75 +152,74 @@ print_expected_layout() {
     fi
     printf '\n'
     note "Ausgrid dataset description: $AUSGRID_URL"
-    note "Authors' OneDrive folder: $ONEDRIVE_URL"
+    note "Release with both archives : $RELEASE_PAGE"
 }
-
-## ---------------------------------------------------------------------------
-## No archive at all: explain what to do and stop.
-## ---------------------------------------------------------------------------
-if [[ -z "$ARCHIVE" && -z "$URL" ]]; then
-    print_manual_instructions
-    print_expected_layout
-    printf '\n'
-    note "Nothing was downloaded; re-run with --archive PATH once you have the zip."
-    exit 0
-fi
 
 WORK_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 
 ## ---------------------------------------------------------------------------
-## Fetch --url into the temporary directory.
+## Without --archive or --url, fetch the release assets.
 ## ---------------------------------------------------------------------------
-if [[ -n "$URL" ]]; then
-    if [[ "$URL" == *"1drv.ms"* || "$URL" == *"onedrive.live.com"* || "$URL" == *"sharepoint.com"* ]]; then
-        warn "OneDrive share links cannot be downloaded non-interactively."
-        print_manual_instructions
-        exit 1
-    fi
-    command -v curl >/dev/null 2>&1 || die "curl is required for --url"
-    ARCHIVE="$WORK_DIR/download.zip"
-    printf 'Downloading %s\n' "$URL"
-    if ! curl -fL --retry 3 --retry-delay 2 -o "$ARCHIVE" "$URL"; then
-        warn "the download failed."
-        print_manual_instructions
-        exit 1
-    fi
+if [[ ${#ARCHIVES[@]} -eq 0 && ${#URLS[@]} -eq 0 ]]; then
+    for asset in "${RELEASE_ASSETS[@]}"; do
+        URLS+=("$RELEASE_URL/$asset")
+    done
 fi
 
-[[ -f "$ARCHIVE" ]] || {
-    warn "no such archive: $ARCHIVE"
-    print_manual_instructions
-    exit 1
+if [[ ${#URLS[@]} -gt 0 ]]; then
+    command -v curl >/dev/null 2>&1 || die "curl is required to download; use --archive instead"
+    mkdir -p "$WORK_DIR/downloads"
+    for url in "${URLS[@]}"; do
+        target="$WORK_DIR/downloads/$(basename "${url%%\?*}")"
+        printf 'Downloading %s\n' "$url"
+        if ! curl -fL --retry 3 --retry-delay 2 -o "$target" "$url"; then
+            warn "the download of $url failed."
+            print_manual_instructions
+            exit 1
+        fi
+        ARCHIVES+=("$target")
+    done
+fi
+
+## ---------------------------------------------------------------------------
+## Check and unpack every archive.
+## ---------------------------------------------------------------------------
+## verify_checksum ZIP -- compare with the line for its file name, if any.
+verify_checksum() {
+    local zip="$1" name expected actual
+    name="$(basename "$zip")"
+    expected="$(awk -v n="$name" '$2 == n || $2 == "*"n {print $1}' "$CHECKSUM_FILE" 2>/dev/null | head -n 1)"
+    if [[ -z "$expected" ]]; then
+        warn "no checksum listed for $name in scripts/checksums.sha256; not verified"
+        return 0
+    fi
+    command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required to verify $name"
+    actual="$(sha256sum "$zip" | awk '{print $1}')"
+    [[ "$actual" == "$expected" ]] ||
+        die "SHA-256 mismatch for $name: the file is incomplete or not the published one"
+    note "checksum OK: $name"
 }
 
-## ---------------------------------------------------------------------------
-## Unpack.
-## ---------------------------------------------------------------------------
 EXTRACT_DIR="$WORK_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
-printf 'Unpacking %s\n' "$ARCHIVE"
-if command -v unzip >/dev/null 2>&1; then
-    unzip -q -o "$ARCHIVE" -d "$EXTRACT_DIR"
-elif command -v python3 >/dev/null 2>&1; then
-    python3 -m zipfile -e "$ARCHIVE" "$EXTRACT_DIR"
-else
-    die "neither 'unzip' nor 'python3' is available to unpack $ARCHIVE"
-fi
-
-## ---------------------------------------------------------------------------
-## Checksums (the file ships empty; the maintainer fills it after publishing).
-## ---------------------------------------------------------------------------
-if [[ -f "$CHECKSUM_FILE" ]] && grep -qvE '^[[:space:]]*(#.*)?$' "$CHECKSUM_FILE"; then
-    printf '\nVerifying SHA-256 checksums from %s\n' "$CHECKSUM_FILE"
-    command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required to verify $CHECKSUM_FILE"
-    (cd "$EXTRACT_DIR" && sha256sum --check --ignore-missing "$CHECKSUM_FILE") ||
-        die "checksum verification failed; the archive looks incomplete or corrupted"
-    note "checksums OK"
-else
-    warn "no checksums listed in scripts/checksums.sha256; skipping verification"
-fi
+for archive in "${ARCHIVES[@]}"; do
+    [[ -f "$archive" ]] || {
+        warn "no such archive: $archive"
+        print_manual_instructions
+        exit 1
+    }
+    verify_checksum "$archive"
+    printf 'Unpacking %s\n' "$archive"
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q -o "$archive" -d "$EXTRACT_DIR"
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -m zipfile -e "$archive" "$EXTRACT_DIR"
+    else
+        die "neither 'unzip' nor 'python3' is available to unpack $archive"
+    fi
+done
 
 ## ---------------------------------------------------------------------------
 ## Merge the payload into the destination.
@@ -247,8 +234,10 @@ copy_merge() {
     mkdir -p "$dst"
     if command -v rsync >/dev/null 2>&1; then
         rsync -a --ignore-existing "$src/" "$dst/"
+    elif cp --help 2>/dev/null | grep -q -- "--update\[=UPDATE\]"; then
+        cp -R --update=none "$src/." "$dst/" # GNU coreutils >= 9.3
     else
-        cp -rn "$src/." "$dst/"
+        cp -Rn "$src/." "$dst/"
     fi
 }
 
@@ -259,7 +248,7 @@ COPIED_MLRUNS=0
 
 printf '\n'
 hr
-printf 'Merging the archive into %s\n' "$DEST"
+printf 'Merging the archives into %s\n' "$DEST"
 hr
 
 ## 1. An "Ausgrid" directory, if the archive has one, otherwise the individual
@@ -268,14 +257,14 @@ while IFS= read -r directory; do
     note "Ausgrid folder: ${directory#"$EXTRACT_DIR"/}"
     copy_merge "$directory" "$AUSGRID_DEST"
     COPIED_AUSGRID=1
-done < <(find "$EXTRACT_DIR" -type d -name "Ausgrid" -prune)
+done < <(find "$EXTRACT_DIR" -type d -name "mlruns" -prune -o -type d -name "Ausgrid" -print -prune)
 
 if [[ $COPIED_AUSGRID -eq 0 ]]; then
     while IFS= read -r directory; do
         note "Ausgrid folder: ${directory#"$EXTRACT_DIR"/}"
         copy_merge "$directory" "$AUSGRID_DEST/$(basename "$directory")"
         COPIED_AUSGRID=1
-    done < <(find "$EXTRACT_DIR" -type d -name "*Solar home half-hour data*" -prune)
+    done < <(find "$EXTRACT_DIR" -type d -name "mlruns" -prune -o -type d -name "*Solar home half-hour data*" -print -prune)
 fi
 
 if [[ $COPIED_AUSGRID -eq 0 ]]; then
@@ -283,7 +272,7 @@ if [[ $COPIED_AUSGRID -eq 0 ]]; then
         note "Ausgrid CSV: ${csv#"$EXTRACT_DIR"/}"
         if [[ $DRY_RUN -eq 0 ]]; then
             mkdir -p "$AUSGRID_DEST"
-            cp -n "$csv" "$AUSGRID_DEST/"
+            [[ -e "$AUSGRID_DEST/$(basename "$csv")" ]] || cp "$csv" "$AUSGRID_DEST/"
         fi
         COPIED_AUSGRID=1
     done < <(find "$EXTRACT_DIR" -type f -iname "*Solar home electricity data*.csv")
@@ -309,9 +298,22 @@ print_expected_layout
 
 printf '\n'
 if [[ $COPIED_MLRUNS -eq 1 && $DRY_RUN -eq 0 ]]; then
-    note "The runs were written on another machine and MLflow stores absolute paths,"
-    note "so point the store at its new location once, then use the pretrained models:"
-    note "  blstm-mionet relocate-mlruns $MLRUNS_DEST"
+    ## MLflow records absolute paths and these runs were written elsewhere.
+    CLI=()
+    if [[ -n "${BLSTM_MIONET_CMD:-}" ]]; then
+        read -r -a CLI <<<"${BLSTM_MIONET_CMD}"
+    elif command -v blstm-mionet >/dev/null 2>&1; then
+        CLI=(blstm-mionet)
+    elif command -v uv >/dev/null 2>&1 && [[ -d "$REPO_ROOT/.venv" ]]; then
+        CLI=(uv run --no-sync --project "$REPO_ROOT" blstm-mionet)
+    fi
+    if [[ ${#CLI[@]} -gt 0 ]] && MLFLOW_DISABLE_AGENT_HINT=1 "${CLI[@]}" relocate-mlruns "$MLRUNS_DEST"; then
+        note "The pretrained models are ready, for example:"
+    else
+        note "MLflow records absolute paths; point the store at its new location once:"
+        note "  blstm-mionet relocate-mlruns $MLRUNS_DEST"
+        note "then use the pretrained models, for example:"
+    fi
     note "  blstm-mionet infer --config configs/lorentz.yaml --model models:/lorentz/latest"
     note "  (set MLFLOW_TRACKING_URI=$MLRUNS_DEST when running from another directory)"
 fi

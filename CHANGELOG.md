@@ -19,6 +19,16 @@
   (it was `1 / M`). For M = 300 this widens the band by 0.17 %.
 - **Ausgrid is tested on 100 sub-sequences per day**, as in Sec. 4.3 of the paper (the
   configuration and `scripts/reproduce_ausgrid.sh` used 200).
+- **The Lorenz and pendulum configurations use the published models' LSTM width (10) and cut
+  offset (0.02 s)**, instead of 100 and 0, which no published result used. The paper states
+  neither; where it does state a setting the configurations already followed it, and
+  `tests/test_paper_settings.py` now pins both kinds of value. The published `lorentz` and
+  `Ausgrid` checkpoints were trained with 10 masks per trajectory rather than the paper's 4 and 5;
+  the configurations keep the paper's values.
+- **The data and pretrained models move to the GitHub release `data-v1.0`** (`Ausgrid.zip`,
+  `mlruns.zip`). `scripts/download_data.sh` downloads both by default, verifies their SHA-256
+  from `scripts/checksums.sha256` and runs `relocate-mlruns`; the OneDrive folder, which
+  scripts could not download, is no longer referenced.
 
 ### Fixed
 
@@ -32,6 +42,9 @@
   reproduce Tables 1, 3 and 5; the README lists the numbers. That archive had been moved once
   before, so its runs record two different old roots; relocation learns the root from every
   `meta.yaml`, not only from the experiments.
+- `download_data.sh` matched the MLflow registry folder `mlruns/models/Ausgrid` as an Ausgrid
+  data folder and copied registry metadata into `data/Ausgrid/`; it now skips `mlruns/`, and
+  copies without GNU `cp -n`, which newer coreutils deprecate.
 - The Ausgrid releases write dates differently ("1-Jul-10" in 2010-2011, "1/07/2011" in the v2
   files). The loader now parses them with `format="mixed", dayfirst=True` instead of relying on
   a warning-emitting fallback; on the real files the result is unchanged, row for row.
