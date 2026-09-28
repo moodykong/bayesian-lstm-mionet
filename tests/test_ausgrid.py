@@ -113,6 +113,29 @@ def test_date_filter(ausgrid_csv: Path) -> None:
     assert single["x"].shape[-1] == 1
 
 
+def test_files_with_different_date_formats(tmp_path: Path, ausgrid_csv_writer) -> None:
+    """The real releases mix "1-Jul-10" (2010-2011) and "1/07/2011" (v2 files)."""
+    first = ausgrid_csv_writer(
+        tmp_path / "2010-2011.csv",
+        customers=(1,),
+        n_days=20,
+        start=datetime.date(2011, 6, 11),
+        date_style="abbreviated",
+    )
+    second = ausgrid_csv_writer(
+        tmp_path / "2011-2012.csv",
+        customers=(1,),
+        n_days=20,
+        start=datetime.date(2011, 7, 1),
+    )
+    # 11-30 June from the first file, 1-12 July from the second.  A month-first
+    # reading of "1/07/2011" would land in January and drop out of the range.
+    data = _select(
+        [first, second], cust_id=[1], start_date="2011-06-11", end_date="2011-07-12"
+    )
+    assert data["x"].shape[-1] == 20 + 12
+
+
 def test_date_filter_accepts_date_objects(ausgrid_csv: Path) -> None:
     """YAML parses an unquoted date into ``datetime.date``."""
     data = _select(

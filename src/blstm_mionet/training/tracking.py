@@ -258,28 +258,34 @@ def relocate_file_store(store: str | Path) -> list[Path]:
     A file store writes the absolute location of every experiment, run, logged
     model and registered model version into its ``meta.yaml`` files, so after
     the directory is copied elsewhere ``runs:/`` and ``models:/`` URIs resolve
-    to the old place.  The old root is recovered from each experiment's
-    ``artifact_location`` (``<old root>/<experiment id>``) and replaced by the
-    store's current absolute path.  Returns the rewritten files; running it
-    again is a no-op.
+    to the old place.  Every ``meta.yaml`` records its own location, e.g. a
+    run's ``artifact_uri`` is ``<old root>/<experiment>/<run>/artifacts``, so
+    the old root is recovered file by file (a store that was moved before can
+    hold several) and replaced by the store's current absolute path.  Returns
+    the rewritten files; running it again is a no-op.
     """
     root = Path(store).resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"no MLflow file store at {root}")
 
+    metas = sorted(root.rglob("meta.yaml"))
     old_roots = set()
-    for meta in root.glob("*/meta.yaml"):
+    for meta in metas:
+        own = "/" + meta.parent.relative_to(root).as_posix()
         for line in meta.read_text(encoding="utf-8").splitlines():
             match = _PATH_LINE.match(line)
-            if match and match["key"] == "artifact_location":
-                path = match["path"].rstrip("/")
-                suffix = "/" + meta.parent.name
-                if path.endswith(suffix):
+            if not match:
+                continue
+            path = match["path"].rstrip("/")
+            for suffix in (own, own + "/artifacts"):
+                if path.endswith(suffix) and len(path) > len(suffix):
                     old_roots.add(path[: -len(suffix)])
     old_roots.discard(str(root))
+    # the longest root first, in case one old root is nested inside another
+    old_roots = sorted(old_roots, key=len, reverse=True)
 
     rewritten = []
-    for meta in sorted(root.rglob("meta.yaml")):
+    for meta in metas:
         lines = meta.read_text(encoding="utf-8").splitlines(keepends=True)
         changed = False
         for i, line in enumerate(lines):

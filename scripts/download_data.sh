@@ -32,7 +32,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 REPO_ROOT="$PWD"
 
 ONEDRIVE_URL="https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz"
-AUSGRID_URL="https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data"
+# Ausgrid no longer hosts the dataset page; this is the paper describing the data.
+AUSGRID_URL="https://doi.org/10.1080/14786451.2015.1100196"
 CHECKSUM_FILE="$REPO_ROOT/scripts/checksums.sha256"
 CONFIG="$REPO_ROOT/configs/ausgrid.yaml"
 
@@ -135,8 +136,8 @@ print_manual_instructions() {
 
        scripts/download_data.sh --url https://zenodo.org/.../blstm-mionet-data.zip
 
-  The Ausgrid CSV files can also be rebuilt from the original source (free
-  registration, the paper uses the "Solar home half-hour data" releases):
+  Ausgrid no longer hosts the "Solar home half-hour data" releases, so the
+  archive above is the practical source; the dataset is described in
 
        $AUSGRID_URL
 EOF
@@ -162,7 +163,7 @@ print_expected_layout() {
         note "missing : mlruns/ (the pretrained runs; training re-creates it)"
     fi
     printf '\n'
-    note "Ausgrid original source: $AUSGRID_URL"
+    note "Ausgrid dataset description: $AUSGRID_URL"
     note "Authors' OneDrive folder: $ONEDRIVE_URL"
 }
 

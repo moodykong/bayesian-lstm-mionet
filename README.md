@@ -220,17 +220,16 @@ RBF kernel `exp(-d^2 / (2 l^2))` with `l = a / sqrt(2) ≈ 0.007` rather than `l
 [`configs/ausgrid.yaml`](configs/ausgrid.yaml), [`scripts/reproduce_ausgrid.sh`](scripts/reproduce_ausgrid.sh).
 Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, CSV columns
 18-38, interpolated to `h = 0.05 hours`; `search_len: 10` gives `h_max = 0.5 hours`, and
-`search_num: 5` replicates every daily profile five times (the paper counts
-`N_train = 366 x 50 x 5 = 91500`; days with too few non-zero readings are dropped first). Testing
-uses customers 51-60 and 61-70 with 100 sub-sequences per day. Needs the licensed CSV files, see
-below. Hours on one GPU.
+`search_num: 5` replicates every daily profile five times. On the released files that selection is
+50 customers x 365 days = 18 250 profiles, of which 17 512 remain after dropping days with fewer
+than 80 % non-zero readings (the paper counts `N_train = 366 x 50 x 5 = 91500`). Testing uses
+customers 51-60 and 61-70 with 100 sub-sequences per day. Needs the CSV files, see below. Hours on
+one GPU.
 
-The paper describes columns 18-38 as "9 am to 7 pm", counting from midnight. In the Ausgrid files
-the 48 half-hour readings follow five metadata columns (`Customer`, `Generator Capacity`,
-`Postcode`, `Consumption Category`, `date`), so these columns hold the readings labelled 07:00 to
-17:00. The real data agree: the 1 July 2010 profiles of Figure 8 peak around `t = 4-5.5 h`, i.e.
-at solar noon in Sydney, and are close to zero at both ends of the window. The code keeps the
-column window of the research code; only the description differs.
+The paper describes columns 18-38 as "9 am to 7 pm", counting from midnight. In the released files
+the readings start after five metadata columns (`Customer`, `Generator Capacity`, `Postcode`,
+`Consumption Category`, `date`) with `0:30`, so columns 18-38 are the readings labelled `7:00` to
+`17:00`. The code keeps the column window of the research code; only the description differs.
 
 ### Bayesian ensembles (Sec. 3.5)
 
@@ -269,13 +268,35 @@ uv run blstm-mionet infer --config configs/lorentz.yaml \
     --data data/lorentz_N_100_h001_T20.npy --model models:/lorentz/latest --device cpu
 ```
 
-The archived models were pickled by the research code, whose classes lived in
-`models.architectures`; `blstm-mionet` loads them into the equivalent classes of this package
+The archived models were pickled by the research code (MLflow 2.5, torch 2.0), whose classes lived
+in `models.architectures`; `blstm-mionet` loads them into the equivalent classes of this package
 (`tests/test_legacy_models.py` checks that the predictions are unchanged).
 
-The Ausgrid CSV files are licensed by Ausgrid and are not redistributed here; the original source is
-[Solar home electricity data](https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data).
-`data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
+Evaluated with this package on CPU, the three registered models reproduce the paper. The Lorenz and
+pendulum test sets are not in the archive, so they were regenerated with `--set data.seed=2024`
+(100 new trajectories each); the Ausgrid test sets come from the released CSV files.
+
+| Registered model | Test set | This package | Paper |
+| --- | --- | --- | --- |
+| `lorentz` | 100 trajectories, `x(t)`, 200 points each | 1.29 % ± 0.98 | 1.29 % ± 0.93 (Table 1) |
+| `pendulum` | 100 GRF controls | 2.12 % ± 1.48 | 2.02 % ± 1.46 (Table 3) |
+| `pendulum` | 100 initial states, `u = sin(t/2)` | 4.18 % ± 4.16 | 2.88 % ± 1.28 (Table 3) |
+| `Ausgrid` | customers 51-60, 3447 days | 1.11 % ± 0.55 | 1.23 % ± 0.67 (Table 5) |
+| `Ausgrid` | customers 61-70, 3509 days | 1.17 % ± 0.61 | 1.33 % ± 0.73 (Table 5) |
+
+Mean ± standard deviation of the per-trajectory L2 relative error. The out-of-distribution
+pendulum mean is carried by a few initial states from which `u = sin(t/2)` spins the pendulum
+through many revolutions (RMS angle above 70 rad, far outside the training data); the median is
+3.2 %.
+
+The registered models were trained with a few settings that differ from the paper's text and from
+`configs/`: `lorentz` has an LSTM of width 10 and saw 10 masks per trajectory with `offset: 0.02`,
+and `Ausgrid` saw 10 masks per daily profile. Each run's parameters are logged in the archive.
+
+The Ausgrid "Solar home electricity data" CSV files are Ausgrid's and are not part of this
+repository. Ausgrid no longer hosts the download page; the dataset is described in
+[Ratnam et al. (2017)](https://doi.org/10.1080/14786451.2015.1100196), reference [34] of the paper, and the three files are in the archive
+above. `data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
 files, by default at:
 
 ```

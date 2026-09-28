@@ -190,6 +190,7 @@ def write_ausgrid_csv(
     start: datetime.date = datetime.date(2010, 7, 1),
     category: str = "GG",
     dead_customers: tuple[int, ...] = (),
+    date_style: str = "numeric",
 ) -> Path:
     """Write a file shaped like an Ausgrid "solar home half-hour data" export.
 
@@ -233,7 +234,11 @@ def write_ausgrid_csv(
                 "2.5",
                 "2000",
                 category,
-                f"{day.day}/{day.month:02d}/{day.year}",
+                (
+                    f"{day.day}-{day:%b}-{day:%y}"  # 2010-2011 release: 1-Jul-10
+                    if date_style == "abbreviated"
+                    else f"{day.day}/{day.month:02d}/{day.year}"  # v2: 1/07/2011
+                ),
                 *(f"{value}" for value in readings),
                 "A",
             ]

@@ -27,8 +27,14 @@
   absolute paths under the machine it ran on. `load_model` now maps those pickles onto the
   classes of this package, and the new `blstm-mionet relocate-mlruns` command points a moved store
   at its new location. `tests/test_legacy_models.py` writes such a store with a frozen copy of the
-  research code's classes, moves it, and checks that the predictions are unchanged; the same
-  check passed on a store written with MLflow 2.8.
+  research code's classes, moves it, and checks that the predictions are unchanged. On the
+  published archive itself (MLflow 2.5, torch 2.0.1) all three registered models load and
+  reproduce Tables 1, 3 and 5; the README lists the numbers. That archive had been moved once
+  before, so its runs record two different old roots; relocation learns the root from every
+  `meta.yaml`, not only from the experiments.
+- The Ausgrid releases write dates differently ("1-Jul-10" in 2010-2011, "1/07/2011" in the v2
+  files). The loader now parses them with `format="mixed", dayfirst=True` instead of relying on
+  a warning-emitting fallback; on the real files the result is unchanged, row for row.
 - `LSTM_MLP` takes the length of a zero-padded history from the position of its last non-zero
   step instead of counting non-zero entries, so an exact zero *inside* a history no longer drops
   the most recent samples. Histories without interior zeros are encoded exactly as before, so
@@ -50,7 +56,10 @@
 
 - The Ausgrid window (CSV columns 18-38) holds the half-hour readings from 07:00 to 17:00, not
   "9 am to 7 pm" as the paper puts it (the paper counts the columns from midnight and skips the
-  five metadata columns). The column window itself is unchanged.
+  five metadata columns); checked against the released files. The column window itself is
+  unchanged.
+- Ausgrid no longer hosts the "Solar home electricity data" page; the README, the scripts and
+  notebook 03 point at the paper describing the dataset and at the authors' archive instead.
 - The README states two properties of the pendulum data that the paper's wording does not: the
   Gaussian random field is evaluated at `theta_dot` (a state-feedback torque), and its kernel
   `exp(-(d / a)^2)` with `a = 0.01` is an RBF kernel with `l ≈ 0.007`. Both are kept as in the

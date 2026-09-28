@@ -58,10 +58,10 @@ def select_ausgrid_data(
     data = pd.concat(
         [pd.read_csv(filepath, header=1) for filepath in csv_paths], axis=0
     )
-    # Convert the date column from string to datetime.  The Ausgrid files use
-    # the Australian day-first format ("1/07/2010"), which pandas >= 2 refuses
-    # to infer on its own.
-    data["date"] = pd.to_datetime(data["date"], dayfirst=True)
+    # Convert the date column from string to datetime.  The releases disagree:
+    # 2010-2011 writes "1-Jul-10", the two "v2" files write the Australian
+    # day-first "1/07/2011", so every element is parsed on its own.
+    data["date"] = pd.to_datetime(data["date"], format="mixed", dayfirst=True)
     data_len = data.shape[0]
     idxs_query_time = (
         (data["date"] >= start_date) & (data["date"] <= end_date)

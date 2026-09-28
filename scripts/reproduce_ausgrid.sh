@@ -78,9 +78,8 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 The solar home half-hour CSV files are licensed by Ausgrid and are not
 redistributed with this repository.  To run the full pipeline:
 
-  1. download the three "Solar home electricity data" zip archives from
-     https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data
-     (or fetch the authors' selection with scripts/download_data.sh),
+  1. fetch the authors' archive with scripts/download_data.sh (Ausgrid no
+     longer hosts the "Solar home electricity data" download page),
   2. extract them so that these paths exist, relative to $PWD:
 
 EOF

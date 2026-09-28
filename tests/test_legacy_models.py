@@ -170,6 +170,31 @@ def test_relocation_keeps_file_uris_and_quotes(tmp_path: Path) -> None:
     )
 
 
+def test_relocation_handles_a_store_moved_more_than_once(tmp_path: Path) -> None:
+    """The published store: experiments under one old root, most runs under another."""
+    store = tmp_path / "mlruns"
+    (store / "7" / "run1").mkdir(parents=True)
+    (store / "7" / "run2").mkdir(parents=True)
+    (store / "7" / "meta.yaml").write_text(
+        "artifact_location: file:///LSTM-MIONet/src/mlruns/7\n"
+    )
+    (store / "7" / "run1" / "meta.yaml").write_text(
+        "artifact_uri: file:///LSTM-MIONet/src/mlruns/7/run1/artifacts\n"
+    )
+    (store / "7" / "run2" / "meta.yaml").write_text(
+        "artifact_uri: file:///PENDULUM/src/mlruns/7/run2/artifacts\n"
+    )
+
+    assert len(tracking.relocate_file_store(store)) == 3
+    root = str(store.resolve())
+    assert (store / "7" / "run2" / "meta.yaml").read_text() == (
+        f"artifact_uri: file://{root}/7/run2/artifacts\n"
+    )
+    for meta in store.rglob("meta.yaml"):
+        assert "LSTM-MIONet" not in meta.read_text()
+        assert "PENDULUM" not in meta.read_text()
+
+
 def test_relocation_rejects_a_missing_store(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         tracking.relocate_file_store(tmp_path / "missing")
