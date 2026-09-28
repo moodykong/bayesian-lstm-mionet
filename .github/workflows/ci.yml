@@ -8,7 +8,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main] # dev is the default branch
   pull_request:
   workflow_dispatch:
 
