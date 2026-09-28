@@ -6,8 +6,10 @@ Static images used by the project README. Two sources:
   Figures 1, 2, 3, 5 and 7 are raster images embedded in the PDF and were extracted at their
   native resolution; Figures 4, 6, 8, 9 and 10 are vector graphics and were rendered at 200 dpi
   from a clip of the page above their caption.
-- `results/` — PNG outputs already stored in the workflow notebooks under `src/`, decoded from the
-  notebooks' base64 `image/png` cell outputs. They are the plots produced by `infer.py`.
+- `results/` — plots produced by the original research code, decoded from the base64 `image/png`
+  cell outputs of its workflow notebooks (`src/workflow_*.ipynb`, last present in commit
+  [`ebd03bb`](https://github.com/moodykong/bayesian-lstm-mionet/tree/ebd03bb/src)). The notebooks
+  in [`notebooks/`](../notebooks) regenerate the same kinds of plot with the current package.
 
 All files are PNG and under 1 MB.
 
@@ -40,12 +42,3 @@ All files are PNG and under 1 MB.
 | `results/pendulum_deeponet_local_baseline.png` | DeepONet_Local baseline on the pendulum (uses the next input value `u` directly). | `src/workflow_pendulum.ipynb`, cell 26 | 558x426 |
 | `results/ausgrid_customers_51_60.png` | Inference on the Ausgrid power generation data set, customers 51-60. | `src/workflow_Ausgrid.ipynb`, cell 15 | 559x426 |
 | `results/ausgrid_customers_61_70.png` | Inference on the Ausgrid power generation data set, customers 61-70. | `src/workflow_Ausgrid.ipynb`, cell 17 | 559x426 |
-
-## Recommended for the main README
-
-1. `paper/fig3_lstm_mionet_architecture.png` — the method figure; the single best image to lead with.
-2. `paper/fig4_lorentz_trajectories.png` — chaotic (Lorentz) system results.
-3. `paper/fig6_pendulum_trajectories.png` — non-autonomous (pendulum) system results.
-4. `paper/fig8_ausgrid_trajectories.png` — real-world (Ausgrid power generation) results.
-5. `paper/fig5_lorentz_uq.png` — the Bayesian contribution: 0.95 confidence interval on Lorentz.
-6. `results/pendulum_ood_sin_t_over_2.png` — out-of-distribution generalization, reproducible from the notebooks.

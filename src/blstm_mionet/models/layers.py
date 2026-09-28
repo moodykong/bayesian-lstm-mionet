@@ -85,8 +85,9 @@ class LSTM_MLP(nn.Module):
 
     A per-time-step MLP lifts the scalar input, an LSTM consumes the packed
     (zero-padded) sequence and a second MLP maps the last hidden state to the
-    branch output.  Zeros act as the padding mask, which is how variable
-    history lengths are handled.
+    branch output.  Histories are right-padded with zeros (paper Sec. 3.4): the
+    length of a sequence is the position of its last non-zero step, so an exact
+    zero *inside* a history is kept as data.  An all-zero history is invalid.
     """
 
     def __init__(
@@ -111,17 +112,21 @@ class LSTM_MLP(nn.Module):
             self.net_2.append(get_activation(activation))
         self.net_2.append(nn.Linear(layer_size[-2], layer_size[-1], bias=True))
 
+    @staticmethod
+    def sequence_lengths(x: torch.Tensor) -> torch.Tensor:
+        """Length of every zero-padded history in ``x`` (``[batch, time, 1]``)."""
+        present = (x != 0).any(dim=-1)  # [batch, time]
+        steps = torch.arange(1, x.shape[1] + 1, device=x.device)
+        return (present * steps).amax(dim=1)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
         for k in range(len(self.net_1)):
             y = self.net_1[k](y)
-        # Define the mask for the padded sequence
-        mask = (x != 0).type(torch.bool)
-        mask_len = mask.sum(axis=(-1, -2)).type(torch.int64)
         y = pack_padded_sequence(
-            y, mask_len.cpu(), batch_first=True, enforce_sorted=False
+            y, self.sequence_lengths(x).cpu(), batch_first=True, enforce_sorted=False
         )
-        _, (h_n, c_n) = self.lstm(y)
+        _, (h_n, _) = self.lstm(y)
         y = self.net_2[0](h_n[-1])
         for k in range(1, len(self.net_2)):
             y = self.net_2[k](y)

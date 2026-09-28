@@ -173,8 +173,8 @@ MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri mlruns
    It also registers a model version named after `training.registered_model_name` (`lorentz` here),
    so `models:/lorentz/latest` resolves to it afterwards.
 3. Prints `Loading model from runs:/<run id>/model`, the L1 and L2 error tables, `Figure saved to
-   figures/infer_trajs_0.png.` and a summary line, `L2-relative error: mean = 46.4144 %, st. dev. =
-   12.2011 % over 20 trajectories`. Two epochs on 20 trajectories is a smoke test, not a result.
+   figures/infer_trajs_0.png.` and a summary line, `L2-relative error: mean = 65.3379 %, st. dev. =
+   5.3737 % over 20 trajectories`. Two epochs on 20 trajectories is a smoke test, not a result.
 4. Prints `Collecting up to 3 ensemble members after epoch 4.` (the burn-in is
    `epochs - (n_ensemble + 1)`), a bar showing both chains and whether they swapped, and `Logged 3
    ensemble members to runs:/<run id>/ensemble`.
@@ -188,8 +188,11 @@ MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri mlruns
 ## Reproducing the paper
 
 Every experiment is one YAML file plus one script; the scripts accept `--device` and a `--quick` flag
-that shrinks the run to a CPU demo. The paper-scale settings below take hours on a GPU and were
-**not** executed to produce this README.
+that shrinks the run to a CPU demo. The configurations follow the paper wherever it states a setting;
+the network sizes, which it does not state, are those of the published models (LSTM width 10 for
+Lorenz and pendulum, 100 for Ausgrid). `tests/test_paper_settings.py` checks both. Training at paper
+scale takes hours on a GPU and was **not** re-run for this README; the published models were
+evaluated instead (see below).
 
 ### Lorentz 63 (Sec. 4.1)
 
@@ -204,49 +207,106 @@ The system is autonomous, so Branch 2 reads the state history (`data.control: nu
 
 [`configs/pendulum.yaml`](configs/pendulum.yaml), [`scripts/reproduce_pendulum.sh`](scripts/reproduce_pendulum.sh).
 5000 initial conditions from `theta in [-pi, pi]`, `theta_dot in [-8, 8]` and 5000 control functions
-drawn from a Gaussian random field with RBF kernel length 0.01 (`data.control: gaussian`); RK-4 at
-`Δ = 0.01 s` over `T = 10 s`; each control replicated 10 times, `N_train = 50000`. For the
-out-of-distribution test of Table 3, regenerate the test set with `--set data.control=designate`,
-which uses `u = sin(t/2)`. Hours on one GPU.
+drawn from a Gaussian random field (`data.control: gaussian`); RK-4 at `Δ = 0.01 s` over `T = 10 s`;
+each control replicated 10 times, `N_train = 50000`. For the out-of-distribution test of Table 3,
+regenerate the test set with `--set data.control=designate`, which uses `u = sin(t/2)`. Hours on one
+GPU.
+
+Two details of the GRF differ from the wording of the paper, and the code keeps them as they were in
+the research code that produced the published numbers. The field is sampled once per trajectory and
+evaluated at the angular velocity, `u = g(theta_dot)`, i.e. a random state-feedback torque rather
+than a function of time. Its correlation is `exp(-(d / a)^2)` with `a = 0.01`, which is the paper's
+RBF kernel `exp(-d^2 / (2 l^2))` with `l = a / sqrt(2) ≈ 0.007` rather than `l = 0.01`.
 
 ### Ausgrid PV generation (Sec. 4.3)
 
 [`configs/ausgrid.yaml`](configs/ausgrid.yaml), [`scripts/reproduce_ausgrid.sh`](scripts/reproduce_ausgrid.sh).
-Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, half-hour
-columns 18-39 (9 am to 7 pm), interpolated to `h = 0.05 hours`; `search_len: 10` gives
-`h_max = 0.5 hours` and `search_num: 5` gives `N_train = 91500` daily sub-sequences. Testing uses
-customers 51-60 and 61-70. Needs the licensed CSV files, see below. Hours on one GPU.
+Gross generation (`category: GG`) of customers 1-50 between 2010-07-01 and 2011-06-30, CSV columns
+18-38, interpolated to `h = 0.05 hours`; `search_len: 10` gives `h_max = 0.5 hours`, and
+`search_num: 5` replicates every daily profile five times. On the released files that selection is
+50 customers x 365 days = 18 250 profiles, of which 17 512 remain after dropping days with fewer
+than 80 % non-zero readings (the paper counts `N_train = 366 x 50 x 5 = 91500`). Testing uses
+customers 51-60 and 61-70 with 100 sub-sequences per day. Needs the CSV files, see below. Hours on
+one GPU.
+
+The paper describes columns 18-38 as "9 am to 7 pm", counting from midnight. In the released files
+the readings start after five metadata columns (`Customer`, `Generator Capacity`, `Postcode`,
+`Consumption Category`, `date`) with `0:30`, so columns 18-38 are the readings labelled `7:00` to
+`17:00`. The code keeps the column window of the research code; only the description differs.
 
 ### Bayesian ensembles (Sec. 3.5)
 
 Add `--bayesian configs/bayesian/<experiment>.yaml` to `train` and the optimiser switches from Adam
 to replica-exchange SGLD: an *exploit* chain at low temperature and an *explore* chain at twice that
 temperature, swapping after every epoch. Members are collected once per epoch after the burn-in
-`epochs - (n_ensemble + 1)`; the shipped files use `n_ensemble: 360` (400 epochs, 40 burn-in) and the
-paper evaluates M = 300 of them. Evaluate with `infer-bayesian --run runs:/<run id>`, or run
+`epochs - (n_ensemble + 1)`; the shipped files use `n_ensemble: 360`, which with `--epochs 400` gives
+40 burn-in epochs as in the research code (the paper does not state the epoch count), and the paper
+evaluates M = 300 members. Evaluate with `infer-bayesian --run runs:/<run id>`, or run
 [`scripts/reproduce_bayesian.sh`](scripts/reproduce_bayesian.sh) `{lorentz|pendulum|ausgrid}`.
 A reSGLD run registers its best exploit-chain snapshot under `<registered_model_name>-bayesian`
 (for example `lorentz-bayesian`), so `models:/lorentz/latest` keeps pointing at the Adam model.
 
+Two fixes since the paper change Bayesian results: the Langevin noise is now drawn independently
+for every parameter entry (the research code used one scalar per tensor), and the posterior
+predictive sample uses the ensemble standard deviation. A rerun therefore will not reproduce the
+published ensembles bit for bit; the deterministic LSTM-MIONet path is unchanged. See
+[CHANGELOG.md](CHANGELOG.md).
+
 ### Pretrained models and data
 
-A OneDrive archive holds both the Ausgrid selection and the `mlruns` folder of the paper, with the
-registered models `lorentz`, `pendulum` and `Ausgrid`:
-[download](https://1drv.ms/f/c/d5114f16b2467d66/ErohO9kQs3dEtu44wJrjXwMBcGFycoc8kBF6evk4bMvxhw?e=LStcCz).
-[`scripts/download_data.sh`](scripts/download_data.sh) is the scripted entry point.
-
-Unpack `mlruns` at the repository root (or leave it anywhere and point `MLFLOW_TRACKING_URI` at it —
-the environment variable wins over `tracking.uri` in the YAML). Registered-model URIs then work
-directly:
+The GitHub release [`data-v1.0`](https://github.com/moodykong/bayesian-lstm-mionet/releases/tag/data-v1.0) holds two archives: `Ausgrid.zip`, the three Ausgrid CSV
+files, and `mlruns.zip`, the MLflow store of the paper with the registered models `lorentz`,
+`pendulum` and `Ausgrid`. [`scripts/download_data.sh`](scripts/download_data.sh) downloads both,
+checks them against [`scripts/checksums.sha256`](scripts/checksums.sha256), unpacks them into the
+repository without overwriting anything and runs `relocate-mlruns`:
 
 ```bash
+scripts/download_data.sh
+```
+
+Unpack `mlruns` at the repository root (or leave it anywhere and point `MLFLOW_TRACKING_URI` at it —
+the environment variable wins over `tracking.uri` in the YAML), then run `relocate-mlruns` once.
+MLflow records absolute paths in the store, and these runs were written on another machine; the
+command points them at the store's new location and is safe to repeat. Registered-model URIs then
+work directly:
+
+```bash
+uv run blstm-mionet relocate-mlruns mlruns
 uv run blstm-mionet infer --config configs/lorentz.yaml \
     --data data/lorentz_N_100_h001_T20.npy --model models:/lorentz/latest --device cpu
 ```
 
-The Ausgrid CSV files are licensed by Ausgrid and are not redistributed here; the original source is
-[Solar home electricity data](https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data).
-`data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
+The archived models were pickled by the research code (MLflow 2.5, torch 2.0), whose classes lived
+in `models.architectures`; `blstm-mionet` loads them into the equivalent classes of this package
+(`tests/test_legacy_models.py` checks that the predictions are unchanged).
+
+Evaluated with this package on CPU, the three registered models reproduce the paper. The Lorenz and
+pendulum test sets are not in the archive, so they were regenerated with `--set data.seed=2024`
+(100 new trajectories each); the Ausgrid test sets come from the released CSV files.
+
+| Registered model | Test set | This package | Paper |
+| --- | --- | --- | --- |
+| `lorentz` | 100 trajectories, `x(t)`, 200 points each | 1.29 % ± 0.98 | 1.29 % ± 0.93 (Table 1) |
+| `pendulum` | 100 GRF controls | 2.12 % ± 1.48 | 2.02 % ± 1.46 (Table 3) |
+| `pendulum` | 100 initial states, `u = sin(t/2)` | 4.18 % ± 4.16 | 2.88 % ± 1.28 (Table 3) |
+| `Ausgrid` | customers 51-60, 3447 days | 1.11 % ± 0.55 | 1.23 % ± 0.67 (Table 5) |
+| `Ausgrid` | customers 61-70, 3509 days | 1.17 % ± 0.61 | 1.33 % ± 0.73 (Table 5) |
+
+Mean ± standard deviation of the per-trajectory L2 relative error. The out-of-distribution
+pendulum mean is carried by a few initial states from which `u = sin(t/2)` spins the pendulum
+through many revolutions (RMS angle above 70 rad, far outside the training data); the median is
+3.2 %.
+
+`configs/` follow the paper wherever it states a setting, and take the network sizes and the cut
+offset, which it does not state, from these models (`tests/test_paper_settings.py` pins both). Two
+published checkpoints deviate from the paper's text: `lorentz` and `Ausgrid` were trained with 10
+masks per trajectory instead of the 4 and 5 of Sections 4.1 and 4.3. Retraining them with the
+shipped configurations removes the difference; each run's parameters are logged in the archive.
+
+The Ausgrid "Solar home electricity data" CSV files are Ausgrid's and are not part of this
+repository. Ausgrid no longer hosts the download page; the dataset is described in
+[Ratnam et al. (2017)](https://doi.org/10.1080/14786451.2015.1100196), reference [34] of the paper, and the three files are
+`Ausgrid.zip` of the release above. `data.ausgrid.csv_paths` in [`configs/ausgrid.yaml`](configs/ausgrid.yaml) expects the three released
 files, by default at:
 
 ```
@@ -282,7 +342,7 @@ the working directory.
 
 ```
 src/blstm_mionet/
-  cli/            generate | train | infer | infer-bayesian sub-commands
+  cli/            generate | train | infer | infer-bayesian | relocate-mlruns sub-commands
   config.py       typed dataclasses, YAML loading and --set overrides
   data/           systems.py (vector fields), generate.py (RK-4), masking.py,
                   datasets.py (torch wrappers), ausgrid.py (CSV selection)
@@ -331,7 +391,8 @@ uv run black --check src tests
 uv run pre-commit install
 ```
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Notable changes, including
+the ones that alter results relative to the paper's code, are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Citation
 

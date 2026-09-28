@@ -37,7 +37,7 @@ usage() {
     cat <<'EOF'
 Options:
   --quick            synthetic CSV, tiny CPU settings, about a minute end to end
-  --device DEVICE    GPU index, "parallel" or "cpu" (default: 0, cpu with --quick)
+  --device DEVICE    GPU index or "cpu" (default: 0, cpu with --quick)
   --workdir DIR      run inside DIR instead of the repository root
   -h, --help         show this message
   ...                every other argument is forwarded to `blstm-mionet train`
@@ -78,9 +78,8 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 The solar home half-hour CSV files are licensed by Ausgrid and are not
 redistributed with this repository.  To run the full pipeline:
 
-  1. download the three "Solar home electricity data" zip archives from
-     https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share/Solar-home-electricity-data
-     (or fetch the authors' selection with scripts/download_data.sh),
+  1. fetch the authors' archive with scripts/download_data.sh (Ausgrid no
+     longer hosts the "Solar home electricity data" download page),
   2. extract them so that these paths exist, relative to $PWD:
 
 EOF
@@ -130,8 +129,8 @@ else
     TEST_A_GROUP="$(customer_range 51 60)"
     TEST_B_GROUP="$(customer_range 61 70)"
     TRAIN_ARGS=()
-    ## 200 sub-sequences per daily profile (configs/ausgrid.yaml).
-    TEST_SEARCH_NUM=200
+    ## 100 sub-sequences per daily profile (configs/ausgrid.yaml, paper Sec. 4.3).
+    TEST_SEARCH_NUM=100
     RUN_NAME="lstm_mionet_ausgrid"
 fi
 
@@ -188,7 +187,7 @@ printf 'Ausgrid pipeline finished in %s (mm:ss).\n' "$(elapsed)"
 hr
 note "MLflow run          : $RUN_URI"
 note "Model used for infer: $MODEL_URI"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/ausgrid_train.log"
 note "Figures             : $PWD/$FIGURES/{train,test_group_a,test_group_b}"
 if [[ $QUICK -eq 1 ]]; then

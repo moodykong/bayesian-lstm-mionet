@@ -118,11 +118,14 @@ blstm_mionet = ["py.typed"]
 [tool.black]
 line-length = 88
 target-version = ["py310"]
+# a verbatim copy of the research code, used as a legacy-format fixture
+extend-exclude = "^/tests/data/"
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
 src = ["src", "tests"]
+extend-exclude = ["tests/data"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "B", "UP"]

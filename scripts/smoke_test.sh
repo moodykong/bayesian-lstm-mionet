@@ -28,7 +28,7 @@ usage() {
     cat <<'EOF'
 Options:
   --sequential     run the pipelines one after another with live output
-  --device DEVICE  GPU index, "parallel" or "cpu" (default: cpu)
+  --device DEVICE  GPU index or "cpu" (default: cpu)
   --keep           keep the temporary directory and print its path
   -h, --help       show this message
 EOF

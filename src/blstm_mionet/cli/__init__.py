@@ -27,7 +27,7 @@ CONFIG_EPILOG = (
 
 
 def device_spec(value: str) -> DeviceSpec:
-    """``argparse`` type for ``--device`` (a GPU index, "parallel" or "cpu")."""
+    """``argparse`` type for ``--device`` (a GPU index or "cpu")."""
     try:
         return parse_device_spec(value)
     except ValueError as exc:

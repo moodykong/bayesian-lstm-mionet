@@ -67,8 +67,9 @@ TINY_N_TIME = int(TINY_T_MAX / TINY_STEP) - 1
 LORENTZ_INIT_PTS = [[-17.0, 20.0], [-23.0, 28.0], [0.0, 50.0]]
 PENDULUM_INIT_PTS = [[-np.pi, np.pi], [-8.0, 8.0]]
 
-#: Half-hour column labels of the Ausgrid "solar home" files.
-HALF_HOUR_COLUMNS = [f"{hour}:{minute:02d}" for hour in range(24) for minute in (0, 30)]
+#: Half-hour column labels of the Ausgrid "solar home" files: each reading is
+#: labelled with the end of its half hour, "0:30", "1:00", ..., "23:30", "0:00".
+HALF_HOUR_COLUMNS = [f"{(k + 1) // 2 % 24}:{30 * ((k + 1) % 2):02d}" for k in range(48)]
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -189,6 +190,7 @@ def write_ausgrid_csv(
     start: datetime.date = datetime.date(2010, 7, 1),
     category: str = "GG",
     dead_customers: tuple[int, ...] = (),
+    date_style: str = "numeric",
 ) -> Path:
     """Write a file shaped like an Ausgrid "solar home half-hour data" export.
 
@@ -232,7 +234,11 @@ def write_ausgrid_csv(
                 "2.5",
                 "2000",
                 category,
-                f"{day.day}/{day.month:02d}/{day.year}",
+                (
+                    f"{day.day}-{day:%b}-{day:%y}"  # 2010-2011 release: 1-Jul-10
+                    if date_style == "abbreviated"
+                    else f"{day.day}/{day.month:02d}/{day.year}"  # v2: 1/07/2011
+                ),
                 *(f"{value}" for value in readings),
                 "A",
             ]

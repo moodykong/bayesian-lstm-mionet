@@ -303,8 +303,9 @@ class InferConfig:
 class LangevinConfig:
     """Parameters of one stochastic gradient Langevin dynamics chain.
 
-    ``tau`` is the inverse temperature, ``eta`` the step size, ``alpha`` the
-    friction and ``v`` enters the derived diffusion ``scale``.
+    ``tau`` is the temperature (the injected noise grows like ``sqrt(tau)``, so
+    the explore chain uses the larger value), ``eta`` the step size, ``alpha``
+    the friction and ``v`` enters the gradient-noise estimate ``beta``.
     """
 
     tau: float = 1e-7
@@ -319,7 +320,8 @@ class LangevinConfig:
 
     @property
     def scale(self) -> float:
-        """Standard deviation of the injected Gaussian noise."""
+        """Per-entry standard deviation of the injected Gaussian noise,
+        ``sqrt(2 * (alpha - beta) * eta * tau)``."""
         return math.sqrt(2.0 * (self.alpha - self.beta) * self.eta) * math.sqrt(
             self.tau
         )

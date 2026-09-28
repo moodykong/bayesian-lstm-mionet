@@ -38,7 +38,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--device",
         type=device_spec,
         default=None,
-        help="GPU index, 'parallel' or 'cpu' (overrides inference.device).",
+        help="GPU index or 'cpu' (overrides inference.device).",
     )
     parser.add_argument(
         "--recursive",

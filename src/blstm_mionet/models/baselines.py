@@ -1,4 +1,4 @@
-"""The vanilla LSTM baseline of Section 5.1 of the paper."""
+"""An LSTM ablation of LSTM-MIONet (compare Section 5.1 of the paper)."""
 
 from __future__ import annotations
 
@@ -9,10 +9,11 @@ from blstm_mionet.models.layers import LSTM_MLP, MLP
 
 
 class LSTM_DeepONet(nn.Module):
-    """LSTM branch x time trunk: no explicit state branch.
+    """LSTM branch x step-size trunk: no explicit state branch.
 
-    The current state has to be inferred from the input function history alone,
-    which is the ablation the paper compares LSTM-MIONet against.
+    The current state has to be inferred from the input function history
+    alone.  The "vanilla LSTM" of Section 5.1 of the paper drops the step-size
+    trunk as well; this variant keeps it so that ``h`` can still vary.
     """
 
     def __init__(self, branch: dict, trunk: dict, use_bias: bool = True) -> None:

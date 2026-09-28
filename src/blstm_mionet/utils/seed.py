@@ -1,8 +1,8 @@
 """Global seeding.
 
-The published experiments were run with seed 999; the dataset preparation
-routines in :mod:`blstm_mionet.data.masking` re-seed with the same value so
-that the sub-sequence sampling is reproducible independently of the caller.
+The published experiments were run with seed 999.  The sub-sequence sampling in
+:mod:`blstm_mionet.data.masking` uses its own generator seeded with the same
+value, so it is reproducible independently of the global state set here.
 """
 
 from __future__ import annotations

@@ -12,9 +12,11 @@
 # epoch to build the posterior ensemble.
 bayesian:
   # Members are collected once per epoch after a burn-in of
-  # training.epochs - (n_ensemble + 1).  The paper's reSGLD runs used
-  # `--epochs 400` (40 burn-in epochs + 360 members) and evaluate M = 300 of
-  # them; with the Adam default of 1000 epochs the burn-in becomes 639.
+  # training.epochs - (n_ensemble + 1).  The research code set
+  # n_ensemble = 400 - 40, i.e. `--epochs 400` (40 burn-in epochs + 360
+  # members), and the paper evaluates M = 300 of them; the paper itself does
+  # not state the epoch count.  With the Adam default of 1000 epochs the
+  # burn-in would be 639.
   n_ensemble: 360
   use_grad_norm: true
   grad_norm: 50.0 # clip_grad_value_ threshold (0.5e2)

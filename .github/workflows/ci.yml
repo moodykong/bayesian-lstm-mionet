@@ -8,8 +8,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main] # dev is the default branch
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # A new push to the same branch (or pull request) cancels the run that is
 # still in flight; only the newest commit is worth testing.
@@ -21,12 +25,17 @@ jobs:
   test:
     name: test (python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.12"]
 
     env:
+      # Every uv command in the job uses the matrix interpreter.  Without this,
+      # `uv run` falls back to .python-version (3.10), rebuilds the virtual
+      # environment and drops the `cpu` extra, so torch disappears.
+      UV_PYTHON: ${{ matrix.python-version }}
       # MLflow prints an agent hint on import; the tests are head-less and log
       # into a temporary file store.
       MLFLOW_DISABLE_AGENT_HINT: "1"
@@ -42,17 +51,18 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      - name: Install Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
       - name: Install the project and its CPU dependencies
-        run: uv sync --extra cpu --python ${{ matrix.python-version }}
+        # --locked fails the job if uv.lock is out of date with pyproject.toml.
+        run: uv sync --locked --extra cpu
+
+      - name: Show the environment
+        run: uv run --no-sync python -c "import sys, torch; print(sys.version); print('torch', torch.__version__)"
 
       - name: Lint (ruff)
-        run: uv run ruff check src tests
+        run: uv run --no-sync ruff check src tests
 
       - name: Format check (black)
-        run: uv run black --check src tests configs
+        run: uv run --no-sync black --check src tests
 
       - name: Test (pytest)
-        run: uv run pytest --durations=10
+        run: uv run --no-sync pytest --durations=10

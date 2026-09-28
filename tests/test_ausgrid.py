@@ -68,9 +68,9 @@ def test_interpolated_values_track_the_raw_readings(ausgrid_csv: Path) -> None:
     knots = profile[:: int(round(1 / DELTA_T_IDXS))]
     assert knots.size == 21
     # Five metadata columns precede the 48 half-hour readings, so the 18:39
-    # window is the half-hour columns 13 to 33, i.e. 06:30 to 16:30.  The
-    # synthetic profile is a bell centred on noon (half-hour column 24), which
-    # lands on offset 24 - 13 = 11 of the window.
+    # window is the half-hour columns 13 to 33, i.e. the readings labelled
+    # 07:00 to 17:00.  The synthetic profile peaks at half-hour column 24,
+    # which lands on offset 24 - 13 = 11 of the window.
     assert knots.argmax() == 11
     assert profile.min() > 0.0
     # Unimodal: rising to the peak, falling afterwards.
@@ -111,6 +111,29 @@ def test_date_filter(ausgrid_csv: Path) -> None:
         [ausgrid_csv], cust_id=[1], start_date="2010-07-15", end_date="2010-07-15"
     )
     assert single["x"].shape[-1] == 1
+
+
+def test_files_with_different_date_formats(tmp_path: Path, ausgrid_csv_writer) -> None:
+    """The real releases mix "1-Jul-10" (2010-2011) and "1/07/2011" (v2 files)."""
+    first = ausgrid_csv_writer(
+        tmp_path / "2010-2011.csv",
+        customers=(1,),
+        n_days=20,
+        start=datetime.date(2011, 6, 11),
+        date_style="abbreviated",
+    )
+    second = ausgrid_csv_writer(
+        tmp_path / "2011-2012.csv",
+        customers=(1,),
+        n_days=20,
+        start=datetime.date(2011, 7, 1),
+    )
+    # 11-30 June from the first file, 1-12 July from the second.  A month-first
+    # reading of "1/07/2011" would land in January and drop out of the range.
+    data = _select(
+        [first, second], cust_id=[1], start_date="2011-06-11", end_date="2011-07-12"
+    )
+    assert data["x"].shape[-1] == 20 + 12
 
 
 def test_date_filter_accepts_date_objects(ausgrid_csv: Path) -> None:

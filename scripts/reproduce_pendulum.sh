@@ -35,7 +35,7 @@ usage() {
     cat <<'EOF'
 Options:
   --quick            tiny CPU settings, about a minute end to end
-  --device DEVICE    GPU index, "parallel" or "cpu" (default: 0, cpu with --quick)
+  --device DEVICE    GPU index or "cpu" (default: 0, cpu with --quick)
   --workdir DIR      run inside DIR instead of the repository root
   -h, --help         show this message
   ...                every other argument is forwarded to `blstm-mionet train`
@@ -125,7 +125,7 @@ printf 'Pendulum pipeline finished in %s (mm:ss).\n' "$(elapsed)"
 hr
 note "MLflow run          : $RUN_URI"
 note "Model used for infer: $MODEL_URI"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/pendulum_train.log"
 note "Figures             : $PWD/$FIGURES/{train,test_grf,test_designate}"
 if [[ $QUICK -eq 1 ]]; then

@@ -70,10 +70,11 @@ All relative to the repository root, and all git-ignored:
 To browse the runs:
 
 ```bash
-uv run mlflow ui --backend-store-uri mlruns
+MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri mlruns
 ```
 
-then open <http://127.0.0.1:5000>.
+then open <http://127.0.0.1:5000>. MLflow 3 refuses a file store unless `MLFLOW_ALLOW_FILE_STORE=true`
+is set; the `blstm-mionet` commands and the notebooks set it for you, the bare `mlflow` CLI does not.
 
 ## Outputs are not committed
 

@@ -34,7 +34,7 @@ usage() {
     cat <<'EOF'
 Options:
   --quick            tiny CPU settings, about a minute end to end
-  --device DEVICE    GPU index, "parallel" or "cpu" (default: 0, cpu with --quick)
+  --device DEVICE    GPU index or "cpu" (default: 0, cpu with --quick)
   --workdir DIR      run inside DIR instead of the repository root
   -h, --help         show this message
   ...                every other argument is forwarded to `blstm-mionet train`
@@ -132,7 +132,7 @@ printf 'Lorenz pipeline finished in %s (mm:ss).\n' "$(elapsed)"
 hr
 note "MLflow run          : $RUN_URI"
 note "Model used for infer: $MODEL_URI"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/lorentz_train.log"
 note "Figures             : $PWD/$FIGURES/{train,test,recursive_tf10,recursive_tf05,recursive_tf00}"
 if [[ $QUICK -eq 1 ]]; then

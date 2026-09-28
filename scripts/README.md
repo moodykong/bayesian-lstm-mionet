@@ -32,7 +32,7 @@ The numbers it prints are meaningless as science; they only prove the pipeline
 runs.  Without `--quick` the scripts run the paper configuration and default to
 `--device 0`.
 
-**`--device DEVICE`.** A GPU index, `parallel` (all visible GPUs) or `cpu`.
+**`--device DEVICE`.** A GPU index or `cpu`.
 Defaults to `0` for full runs and `cpu` in quick mode.
 
 **`--workdir DIR`.** All paths inside `configs/*.yaml` are relative to the
@@ -49,7 +49,8 @@ capture that id and evaluate `runs:/<id>/model`, so a run never picks up a
 stale `models:/<name>/latest`.  The registered name of the configuration
 (`lorentz`, `pendulum`, `Ausgrid`) is printed in the final summary of a full
 run.  Runs land in `./mlruns`; browse them with
-`mlflow ui --backend-store-uri ./mlruns`.
+`MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri ./mlruns` (MLflow 3
+refuses a file store without that variable).
 
 ## The scripts
 
@@ -87,13 +88,13 @@ useless as a result.  Figures land in
 `ausgrid`) is the B-LSTM-MIONet half of the paper.  It reuses the datasets
 written by the matching `reproduce_SYSTEM.sh` (generating them only if they are
 missing), trains two replica-exchange Langevin chains with
-`configs/bayesian/SYSTEM.yaml` for 400 epochs -- 39 burn-in epochs followed by
+`configs/bayesian/SYSTEM.yaml` for 400 epochs -- 40 burn-in epochs followed by
 360 collected posterior samples -- and then runs `blstm-mionet infer-bayesian`,
 which evaluates the `M = 300` members named by `inference.n_ensemble` and
 prints the PICP of the 95% credible interval; the script repeats that PICP line
-in its summary.  Note that a full Bayesian run also registers its exploit chain
-under the same model name as the deterministic run (`models:/lorentz`, ...),
-which the summary points out.
+in its summary.  A full Bayesian run registers its best exploit-chain snapshot
+as `models:/<name>-bayesian` (for example `lorentz-bayesian`), so the Adam model
+under `models:/<name>/latest` is left untouched.
 
 **`smoke_test.sh`** is the fast sanity check: it creates a temporary directory
 (removed by a trap on exit), runs `reproduce_lorentz.sh --quick`,
@@ -104,42 +105,39 @@ with live output -- and exits non-zero if any of them fails, printing the failin
 pipeline's log.  Nothing is written into the repository.  Use `--keep` to
 inspect the temporary directory afterwards.
 
-**`download_data.sh`** fetches the two things that are not in git: the Ausgrid
-CSV selection and the `mlruns` store with the pretrained registered models
-(`lorentz`, `pendulum`, `Ausgrid`).  Both currently live in one OneDrive folder,
-and OneDrive share links cannot be downloaded non-interactively, so the script
-does not pretend otherwise: run without arguments it prints step-by-step manual
-instructions (download the folder as a zip in a browser, re-run with
-`--archive PATH`), the three CSV paths `configs/ausgrid.yaml` expects and the
-original Ausgrid source.  Given `--archive PATH` (or `--url URL`, for a future
-Zenodo or GitHub release link that curl can follow) it unpacks the archive into
-a temporary directory, verifies SHA-256 checksums when `scripts/checksums.sha256`
-lists any, merges the Ausgrid folders into `data/Ausgrid/` and the run store
-into `./mlruns` without ever replacing or deleting existing files, and reports
-what landed where.  It needs no Python environment.
+**`download_data.sh`** fetches the two things that are not in git, both from
+the GitHub release `data-v1.0`: `Ausgrid.zip` (the three Ausgrid CSV files) and
+`mlruns.zip` (the MLflow store with the pretrained registered models `lorentz`,
+`pendulum` and `Ausgrid`).  Run without arguments it downloads both; `--archive
+PATH` takes files downloaded by hand and `--url URL` other direct links (both
+repeatable).  Every archive is checked against `scripts/checksums.sha256`,
+unpacked into a temporary directory and merged into `data/Ausgrid/` and
+`./mlruns` without ever replacing or deleting existing files.  The script then
+runs `blstm-mionet relocate-mlruns`, because MLflow stores absolute paths and
+the archived runs were written on another machine; without the CLI it prints
+that command instead.  Only curl and unzip (or python3) are required.
 
-**`checksums.sha256`** ships empty on purpose; the maintainer fills it in once
-the archive has a stable published URL.  **`_common.sh`** is not a user facing
-script: it is sourced by the others and holds the CLI discovery, the shared
-argument parsing, the "generate only if missing" helper, the run-id capture and
-the synthetic Ausgrid CSV writer.
+**`checksums.sha256`** lists the SHA-256 of the two release archives.
+**`_common.sh`** is not a user facing script: it is sourced by the others and
+holds the CLI discovery, the shared argument parsing, the "generate only if
+missing" helper, the run-id capture and the synthetic Ausgrid CSV writer.
 
 ## Runtimes
 
-| command | measured here (CPU) | paper scale |
+| command | measured (CPU only) | paper scale |
 | --- | --- | --- |
 | `reproduce_lorentz.sh --quick` | 55 s | -- |
 | `reproduce_pendulum.sh --quick` | 44 s | -- |
 | `reproduce_ausgrid.sh --quick` | 41 s | -- |
 | `reproduce_bayesian.sh lorentz --quick` | 30 s | -- |
 | `smoke_test.sh` (the three in parallel) | 55 s | -- |
-| `reproduce_lorentz.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_pendulum.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_ausgrid.sh` | -- | hours on one GPU, not measured here |
-| `reproduce_bayesian.sh SYSTEM` | -- | hours on one GPU, not measured here |
+| `reproduce_lorentz.sh` | -- | hours on one GPU |
+| `reproduce_pendulum.sh` | -- | hours on one GPU |
+| `reproduce_ausgrid.sh` | -- | hours on one GPU |
+| `reproduce_bayesian.sh SYSTEM` | -- | hours on one GPU |
 
 The quick numbers were measured on a 20 core CPU-only machine (torch 2.14, no
-CUDA) that was busy with other work, so they are upper bounds; they are
+CUDA) under other load, so they are upper bounds; they are
 dominated by interpreter start-up, MLflow model logging and -- for the pendulum
 -- the 2000 x 2000 Cholesky factorisation behind every Gaussian random field
 control, not by the training itself.  Running three pipelines at once only pays
@@ -147,6 +145,6 @@ off when each of them is kept from grabbing every core, which is why
 `smoke_test.sh` caps `OMP_NUM_THREADS`/`MKL_NUM_THREADS` at a third of the
 cores; without that cap the same three pipelines took five times longer here.
 
-The full pipelines were not run in this environment: they need a GPU,
-5000 trajectory datasets and up to 1000 Adam epochs (400 reSGLD epochs with two
-chains each), which is hours per experiment.
+The paper-scale pipelines need a GPU, 5000 trajectory datasets and up to 1000
+Adam epochs (400 reSGLD epochs with two chains each), which is hours per
+experiment; they are not part of CI.

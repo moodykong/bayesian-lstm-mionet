@@ -38,7 +38,7 @@ def test_root_help_lists_every_command(capsys) -> None:
         main(["--help"])
     assert excinfo.value.code == 0
     printed = capsys.readouterr().out
-    for command in ("generate", "train", "infer", "infer-bayesian"):
+    for command in ("generate", "train", "infer", "infer-bayesian", "relocate-mlruns"):
         assert command in printed
     assert "B-LSTM-MIONet" in printed
     assert "--set" in printed
@@ -156,6 +156,7 @@ def test_generate_writes_the_dataset(
 # Full pipelines
 # --------------------------------------------------------------------------- #
 @pytest.mark.slow
+@pytest.mark.filterwarnings("ignore:consecutive rollout points")
 def test_lorentz_end_to_end(
     run_cli, lorentz_config_path: Path, tmp_path: Path, capsys
 ) -> None:

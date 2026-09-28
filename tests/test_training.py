@@ -8,10 +8,16 @@ import mlflow
 import numpy as np
 import pytest
 import torch
+from mlflow.exceptions import MlflowException
 
+from blstm_mionet.config import LangevinConfig, TrainConfig
+from blstm_mionet.models import build_model
 from blstm_mionet.training import tracking
+from blstm_mionet.training.resgld import langevin_step
+from blstm_mionet.training.trainer import train_adam
 from conftest import (
     execute_training,
+    prepare_training_dataset,
     tiny_bayesian_config,
     tiny_model_config,
     tiny_train_config,
@@ -100,7 +106,7 @@ def test_train_adam_can_skip_saving_the_model(
     )
     assert result["history"]["model_uri"] is None
     assert result["history"]["model_uris"] == []
-    with pytest.raises(Exception):  # noqa: B017 - MLflow raises its own type
+    with pytest.raises(MlflowException):
         tracking.load_model(f"runs:/{result['run_id']}/model", torch.device("cpu"))
     assert len(_metric_history(result["run_id"], "train_loss")) == 1
 
@@ -158,6 +164,58 @@ def test_resgld_members_load_into_the_model(resgld_run, cpu_device) -> None:
         checkpoint = torch.load(path, map_location=cpu_device, weights_only=False)
         assert "state_dict" in checkpoint
         model.load_state_dict(checkpoint["state_dict"])  # must not raise
+
+
+def _single_parameter_net(n: int, grad: float) -> torch.nn.Module:
+    net = torch.nn.Linear(n, 1, bias=False)
+    torch.nn.init.zeros_(net.weight)
+    net.weight.grad = torch.full_like(net.weight, grad)
+    return net
+
+
+def test_langevin_step_deterministic_part() -> None:
+    """With zero temperature the update is plain momentum SGD on ``grad / sigma``."""
+    chain = LangevinConfig(tau=0.0, eta=0.1, alpha=0.25, v=0.1)
+    assert chain.scale == 0.0
+    net = _single_parameter_net(5, grad=2.0)
+    velocity = [torch.full_like(net.weight, 1.0)]
+
+    langevin_step(net, velocity, chain, sigma=4.0)
+
+    # v = (1 - 0.25) * 1.0 - 0.1 * 2.0 / 4.0 = 0.7; theta = 0 + v
+    assert torch.allclose(velocity[0], torch.full_like(net.weight, 0.7))
+    assert torch.allclose(net.weight.detach(), torch.full_like(net.weight, 0.7))
+
+
+def test_langevin_step_noise_is_independent_per_entry() -> None:
+    """Every parameter entry receives its own N(0, scale^2) kick."""
+    chain = LangevinConfig(tau=1.0, eta=1e-2, alpha=0.5, v=0.1)
+    net = _single_parameter_net(20_000, grad=0.0)
+    velocity = [torch.zeros_like(net.weight)]
+
+    torch.manual_seed(0)
+    langevin_step(net, velocity, chain, sigma=1.0)
+
+    kicks = net.weight.detach().flatten()
+    # A single scalar per tensor would make every entry identical.
+    assert kicks.unique().numel() > 1000
+    assert kicks.mean().abs() < 5 * chain.scale / np.sqrt(kicks.numel())
+    assert kicks.std().item() == pytest.approx(chain.scale, rel=0.05)
+
+
+def test_train_adam_fails_loudly_when_resume_model_is_missing(
+    shared_tracking, lorentz_dataset: Path
+) -> None:
+    """A warm start that cannot be loaded must not silently train from scratch."""
+    config: TrainConfig = tiny_train_config(
+        lorentz_dataset, epochs=1, resume_model="runs:/0123456789abcdef/model"
+    )
+    model_config = tiny_model_config("LSTM_MIONet")
+    dataset, _, state_feature_num = prepare_training_dataset(config, model_config)
+    model = build_model(model_config, state_feature_num)
+    with tracking.start_run("blstm_mionet_tests", "bad_resume"):
+        with pytest.raises(MlflowException):
+            train_adam(config, model, dataset, torch.device("cpu"))
 
 
 def test_resgld_burn_in_controls_the_member_count() -> None:

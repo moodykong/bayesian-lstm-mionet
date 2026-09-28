@@ -12,8 +12,9 @@
 #   1. generate (or reuse) the training set of that system
 #   2. generate (or reuse) the test set of that system
 #   3. train two Langevin chains with configs/bayesian/SYSTEM.yaml; after the
-#      burn-in the exploit chain is sampled once per epoch, giving the 360
-#      member posterior ensemble of the paper (400 epochs - 40 burn-in)
+#      burn-in the exploit chain is sampled once per epoch, giving a 360
+#      member posterior ensemble (400 epochs - 40 burn-in, as in the research
+#      code; the paper evaluates M = 300 of them)
 #   4. evaluate the ensemble with `blstm-mionet infer-bayesian`, which reads the
 #      M = 300 members named by inference.n_ensemble and prints the PICP of the
 #      95% credible interval
@@ -41,7 +42,7 @@ usage() {
     cat <<'EOF'
 Options:
   --quick            tiny CPU settings, well under a minute end to end
-  --device DEVICE    GPU index, "parallel" or "cpu" (default: 0, cpu with --quick)
+  --device DEVICE    GPU index or "cpu" (default: 0, cpu with --quick)
   --workdir DIR      run inside DIR instead of the repository root
   -h, --help         show this message
   ...                every other argument is forwarded to `blstm-mionet train`
@@ -200,7 +201,7 @@ hr
 note "${PICP_LINE:-PICP line not found in $INFER_LOG}"
 note "MLflow run          : $RUN_URI"
 note "Ensemble artifacts  : $RUN_URI/ensemble  (member_XXXX.pt)"
-note "MLflow tracking dir : $PWD/mlruns  (mlflow ui --backend-store-uri $PWD/mlruns)"
+note "MLflow tracking dir : $PWD/mlruns  (MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri $PWD/mlruns)"
 note "Training log        : $PWD/logs/bayesian_${SYSTEM}_train.log"
 note "Inference log       : $PWD/$INFER_LOG"
 note "Figures             : $PWD/$FIGURES/{train,uq}"

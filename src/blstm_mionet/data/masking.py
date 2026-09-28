@@ -6,9 +6,10 @@ consumed by the operators: the masked input trajectory, the current state
 ``x_n``, the target ``x_next`` and the time parameters
 ``(t_n, h, t_n + h)`` scaled back to physical time.
 
-The sampling logic (including the internal re-seeding with 999) is carried
-over verbatim from ``src/utils/data_utils.py``: the published results depend
-on it.
+Sub-sequences are drawn from a private ``numpy.random.RandomState(999)``, so a
+given dataset is always masked the same way.  That generator yields exactly the
+draws of the original code (which re-seeded NumPy's global generator with 999)
+without touching the caller's global NumPy or PyTorch random state.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from __future__ import annotations
 import copy
 
 import numpy as np
-import torch
 from scipy.interpolate import interp1d
 
 SEED = 999
@@ -34,8 +34,6 @@ def prepare_local_predict_dataset(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Prepare data set for local prediction problem based on history inputs."""
     ## Step 1: collect and copy data
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
     u_data, x_data, t_data = data
     u = copy.deepcopy(u_data) if u_data is not None else None
     x = copy.deepcopy(x_data)
@@ -76,6 +74,7 @@ def prepare_local_predict_dataset(
         splines_x.append(spline_x_i)
 
     t_params = _sample_time_parameters(
+        rng=np.random.RandomState(SEED),
         nData=nData,
         n_time=t.size,
         search_len=search_len,
@@ -146,8 +145,6 @@ def prepare_future_local_predict_dataset(
     instead of the past input function; it therefore requires a control ``u``.
     """
     ## Step 1: collect and copy data
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
     u_data, x_data, t_data = data
     if u_data is None:
         raise ValueError(
@@ -202,6 +199,7 @@ def prepare_future_local_predict_dataset(
         splines_u.append(spline_u_i)
 
     t_params = _sample_time_parameters(
+        rng=np.random.RandomState(SEED),
         nData=nData,
         n_time=t.size,
         search_len=search_len,
@@ -256,6 +254,7 @@ def prepare_future_local_predict_dataset(
 
 
 def _sample_time_parameters(
+    rng: np.random.RandomState,
     nData: int,
     n_time: int,
     search_len: int,
@@ -269,7 +268,7 @@ def _sample_time_parameters(
     arithmetic or the order of the random draws.
     """
     if search_random:
-        t_params = np.random.rand(search_num, nData, 3)
+        t_params = rng.rand(search_num, nData, 3)
         # Randomly select the starting index
         t_params[:, :, 0] = (
             offset + t_params[:, :, 0] * (n_time - offset - search_len * 2)

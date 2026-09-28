@@ -28,7 +28,8 @@ def grf_1d(a: float = 0.01, nu: float = 1.0) -> CubicSpline:
     """Draw a sample path of a 1-D Gaussian random field as a cubic spline.
 
     ``a`` is the correlation length and ``nu`` the smoothness exponent of the
-    correlation function ``exp(-(h / a) ** (2 * nu))``.
+    correlation function ``exp(-(h / a) ** (2 * nu))``.  With ``nu = 1`` this is
+    an RBF kernel ``exp(-h ** 2 / (2 * l ** 2))`` with ``l = a / sqrt(2)``.
     """
 
     # Correlation function

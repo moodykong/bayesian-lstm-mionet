@@ -49,7 +49,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--device",
         type=device_spec,
         default=None,
-        help="GPU index, 'parallel' or 'cpu' (overrides training.device).",
+        help="GPU index or 'cpu' (overrides training.device).",
     )
     parser.add_argument("--run-name", default=None, help="overrides training.run_name.")
     parser.add_argument(
