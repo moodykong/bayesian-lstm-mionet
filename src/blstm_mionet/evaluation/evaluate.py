@@ -93,7 +93,7 @@ def evaluate_recursive(
 
     ## Step 3: infer at each time step
     model.eval()
-    progress_bar = tqdm(total=dataset.len, desc="Infering ...", dynamic_ncols=True)
+    progress_bar = tqdm(total=dataset.len, desc="Recursive rollout", dynamic_ncols=True)
 
     for idx, (x_test_batch, y_test_batch) in enumerate(test_loader):
         ## batch testing

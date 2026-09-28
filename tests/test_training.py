@@ -8,6 +8,7 @@ import mlflow
 import numpy as np
 import pytest
 import torch
+from mlflow.exceptions import MlflowException
 
 from blstm_mionet.config import LangevinConfig, TrainConfig
 from blstm_mionet.models import build_model
@@ -105,7 +106,7 @@ def test_train_adam_can_skip_saving_the_model(
     )
     assert result["history"]["model_uri"] is None
     assert result["history"]["model_uris"] == []
-    with pytest.raises(Exception):  # noqa: B017 - MLflow raises its own type
+    with pytest.raises(MlflowException):
         tracking.load_model(f"runs:/{result['run_id']}/model", torch.device("cpu"))
     assert len(_metric_history(result["run_id"], "train_loss")) == 1
 
@@ -213,7 +214,7 @@ def test_train_adam_fails_loudly_when_resume_model_is_missing(
     dataset, _, state_feature_num = prepare_training_dataset(config, model_config)
     model = build_model(model_config, state_feature_num)
     with tracking.start_run("blstm_mionet_tests", "bad_resume"):
-        with pytest.raises(Exception):  # noqa: B017 - MLflow raises its own type
+        with pytest.raises(MlflowException):
             train_adam(config, model, dataset, torch.device("cpu"))
 
 

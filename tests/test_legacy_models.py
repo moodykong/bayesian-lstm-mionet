@@ -21,6 +21,7 @@ import mlflow
 import numpy as np
 import pytest
 import torch
+from mlflow.exceptions import MlflowException
 
 from blstm_mionet.cli.main import main as cli_main
 from blstm_mionet.models import LSTM_MIONet
@@ -108,7 +109,7 @@ def moved_legacy_store(
 
 
 def test_a_moved_store_does_not_resolve_until_relocated(moved_legacy_store) -> None:
-    with pytest.raises(Exception):  # noqa: B017 - MLflow raises its own type
+    with pytest.raises(MlflowException):
         tracking.load_model("models:/lorentz/latest", torch.device("cpu"))
 
 
